@@ -4,6 +4,7 @@ import json
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 import vertexai
+import re
 
 from pinecone import Pinecone
 
@@ -126,7 +127,57 @@ def analyze_document():
     }
     
     return jsonify(final_response)
-    
+
+@app.route('/chatbot', methods=['POST'])
+def chatbot():
+    """
+    Chatbot endpoint to answer user questions about the contract.
+    Expects JSON input with:
+      - 'summary': summary of the contract
+      - 'detailed_analysis': list of clause analyses
+      - 'question': user's question
+    """
+    data = request.get_json()
+    if not data or 'summary' not in data or 'detailed_analysis' not in data :
+        return jsonify({"error": "Request body must contain 'summary', 'detailed_analysis'"}), 400
+
+    summary = parse_summary(data['summary'])
+    detailed_analysis = data['detailed_analysis']
+    question = data['question']
+
+    # Prepare context for the LLM
+    context = f"""
+    You are a legal assistant specializing in Indian rental agreements. 
+
+    Your job:
+    1. First, check the provided summary and clause analyses for explicit rules. 
+    2. If the agreement is silent on the issue, point this out clearly.
+    3. Then, explain the *typical legal or common practice in India* that would apply in such a case. 
+    4. Suggest what the tenant should clarify or negotiate with the landlord.
+
+    Keep your answer simple, practical, and written for a non-lawyer.
+
+    **Contract Summary:**
+    {summary}
+
+    **Detailed Analysis of Clauses:**
+    {detailed_analysis}
+
+    **User Question:**
+    {question}
+
+    Keep the response small and one liner points"
+    """
+
+    try:
+        response = generation_model.generate_content(context)
+        answer = response.text.strip()
+        return jsonify({"answer": answer})
+    except Exception as e:
+        print(f"❌ error during chatbot response: {e}")
+        return jsonify({"error": "Could not generate a response."}), 500
+
+
 # put flowchart api here
 def get_flowchart_mermaid_from_summary(summary_text: str) -> str:
     """Generates Mermaid flowchart code from a summary text using the generative model."""
@@ -150,6 +201,27 @@ def get_flowchart_mermaid_from_summary(summary_text: str) -> str:
     except Exception as e:
         print(f"❌ error during flowchart generation: {e}")
         return "graph TD;\n    A[Error generating flowchart];"
+    
+def parse_summary(summary: str) -> str:
+    """
+    Parse the markdown-style summary into a clean, structured text block
+    for the LLM context.
+    """
+    lines = summary.split("\n")
+    parsed_lines = []
+
+    for line in lines:
+        # Extract bold headings like **Key:** Value
+        match = re.match(r"\*\*(.*?)\*\*[:\-]*\s*(.*)", line.strip())
+        if match:
+            key, value = match.groups()
+            parsed_lines.append(f"{key.strip()}: {value.strip()}")
+        else:
+            # Keep non-empty plain lines
+            if line.strip():
+                parsed_lines.append(line.strip())
+
+    return "\n".join(parsed_lines)
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
