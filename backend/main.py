@@ -4,12 +4,12 @@ import json
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 import vertexai
+from sentence_transformers import SentenceTransformer
 import re
 
 from pinecone import Pinecone
 
 from vertexai.generative_models import GenerativeModel
-from vertexai.language_models import TextEmbeddingModel
 
 load_dotenv()
 
@@ -20,7 +20,7 @@ REGION = os.environ.get("GCP_REGION")
 vertexai.init(project=PROJECT_ID, location=REGION)
 
 generation_model = GenerativeModel("gemini-2.5-pro")
-embedding_model = TextEmbeddingModel.from_pretrained("text-embedding-004")
+embedding_model = SentenceTransformer("sentence-transformers/all-mpnet-base-v2")  
 
 PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
 INDEX_NAME = "karnataka-rental-lows"
@@ -75,7 +75,7 @@ def analyze_document():
     for i, chunk in enumerate(chunks):
         print(f"analyzing chunk {i+1}/{len(chunks)}...")
         try:
-            chunk_embedding = embedding_model.get_embeddings([chunk])[0].values
+            chunk_embedding = embedding_model.encode(chunk).tolist()
 
             query_response = pinecone_index.query(
                 vector=chunk_embedding,
@@ -93,16 +93,27 @@ def analyze_document():
                 )
 
             analysis_prompt = f"""
-            You are a legal risk analyzer for Indian rental agreements. Analyze the "User's Clause" based ONLY on the provided "Expert Context".
+            You are a legal risk analyzer for Indian residential rental agreements.
+
+            Analyze the "User's Clause" using BOTH:
+            1) the "Expert Context" (if substantive), and
+            2) your domain knowledge of typical Indian rental practices.
+
+            If the Expert Context is empty or insufficient, DO NOT say "no context" or "N/A".
+            You MUST still classify risk and provide one-sentence advice based on the clause itself
+            and general norms for Indian rental agreements (Bengaluru/Karnataka context).
+
+            Return ONLY a VALID JSON object with EXACTLY these keys:
+            - "risk_level": one of "Red", "Yellow", "Green", or "Neutral"
+            - "risk_explanation": one concise sentence (no 'N/A', no references to missing context)
+            - "actionable_advice": one concise sentence tailored to the clause
+            - "clause_category": concise category (e.g., "Security Deposit", "Termination", "Maintenance", "Entry/Inspection", "Rent & Payment", etc.)
 
             **User's Clause to Analyze:**
-            "{chunk}"
+            \"\"\"{chunk}\"\"\"
 
             **Expert Context from Knowledge Base:**
             {similar_clauses_context}
-
-            **Your Task:**
-            Respond in a VALID JSON format with four keys: "risk_level" (string: "Red", "Yellow", "Green", or "Neutral"), "risk_explanation" (string: a simple one-sentence explanation of the risk), "actionable_advice" (string: one sentence of advice for the user), and "clause_category" (string: a category like "Security Deposit" or "Termination").
             """
             
             analysis_response = generation_model.generate_content(analysis_prompt)
