@@ -89,7 +89,8 @@ def process_contract(document_text: str, summary_prompt: str, analysis_prompt_te
     print("✅ detailed analysis complete.")
     return {
         "summary": summary_result,
-        "detailed_analysis": risk_analysis_results
+        "detailed_analysis": risk_analysis_results,
+        "flowchart": mermaid_code
     }
 
 
