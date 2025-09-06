@@ -8,6 +8,7 @@ from sentence_transformers import SentenceTransformer
 import re
 from pinecone import Pinecone
 from vertexai.generative_models import GenerativeModel
+from helper import extract_interest_rate, search_tool
 
 load_dotenv()
 
@@ -317,6 +318,15 @@ def chatbot():
         print(f"❌ error during chatbot response: {e}")
         return jsonify({"error": "Could not generate a response."}), 500
 
+@app.route('/compare-loan-rates-auto', methods=['POST'])
+def compare_loan_rates_auto():
+    data = request.get_json()
+    if not data or 'summary' not in data:
+        return jsonify({"error": "Request body must contain 'summary'"}), 400
+    
+    summary = data['summary']
+    result = find_better_loan_options(summary)
+    return jsonify(result)
 
 # put flowchart api here
 def get_flowchart_mermaid_from_summary(summary_text: str) -> str:
@@ -394,6 +404,38 @@ def detect_contract_type(document_text: str) -> str:
     except Exception as e:
         print(f"❌ error in contract classification: {e}")
         return "unknown"
+    
+def find_better_loan_options(summary: str):
+    # Step A: extract interest rate
+    agreement_rate = extract_interest_rate(summary)
+    if not agreement_rate:
+        return {"error": "Could not extract interest rate from summary"}
+    
+    # Step B: let Gemini reason with web tool
+    prompt = f"""
+    The loan agreement has an interest rate of {agreement_rate}%.
+    Use the search_web tool to look up current personal loan interest rates in India (Sep 2025).
+    Find banks offering lower rates than {agreement_rate}%.
+    
+    Return a JSON list with objects like:
+    {{
+      "bank": "<Bank Name>",
+      "rate": <float>,
+      "application_link": "<URL>",
+      "advice": "<short one-line advice>"
+    }}
+    """
+    
+    response = generation_model.generate_content(
+        prompt,
+        tools=[search_tool],
+        tool_config={"function_calling_config": "AUTO"}  # let Gemini decide when to call
+    )
+    
+    try:
+        return json.loads(response.text.strip())
+    except:
+        return {"raw_response": response.text}
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)),debug=True)
