@@ -12,6 +12,7 @@ from pinecone import Pinecone
 
 from vertexai.generative_models import GenerativeModel
 from langchain_google_genai import ChatGoogleGenerativeAI
+from helper import extract_interest_rate, tavily_search_tool
 
 load_dotenv()
 
@@ -24,6 +25,7 @@ vertexai.init(project=PROJECT_ID, location=REGION)
 generation_model = GenerativeModel("gemini-2.5-pro")
 embedding_model = SentenceTransformer("sentence-transformers/all-mpnet-base-v2")  
 llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash",api_key = "AIzaSyAPHug8W6bKdXgujjDXdtURjIlreVL_P3s")
+llm_tools = llm.bind_tools([tavily_search_tool])
 
 PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
 RENTAL_INDEX_NAME = "karnataka-rental-lows"
@@ -331,6 +333,41 @@ def chatbot():
     except Exception as e:
         print(f"❌ error during chatbot response: {e}")
         return jsonify({"error": "Could not generate a response."}), 500
+
+@app.route('/loan_comparison', methods=['POST'])
+def loan_comparison():
+    data = request.get_json()
+    if 'summary' not in data:
+        return jsonify({"error": "Request body must contain 'summary'"}), 400
+
+    summary = parse_summary(data['summary'])
+    agreement_rate = extract_interest_rate(summary)
+
+    query = f"current personal loan interest rates India September 2025"
+
+    # Step 1: Ask Gemini with tool binding
+    response = llm_tools.invoke(
+        f"The loan agreement has {agreement_rate}% interest. "
+        f"Search for banks offering lower rates. Query: {query}"
+    )
+
+    # Step 2: Check if Gemini tried to call a tool
+    if response.tool_calls:
+        tool_call = response.tool_calls[0]
+        if tool_call["name"] == "tavily_search_tool":
+            tool_args = tool_call["args"]
+            tool_result = tavily_search_tool(**tool_args)   # actually call your function
+
+            # Step 3: Send tool result back to Gemini for reasoning
+            followup = llm_tools.invoke(
+                f"The agreement interest rate is {agreement_rate}%. "
+                f"Here are the current market loan rates: {tool_result}. "
+                f"Compare and suggest the best option."
+            )
+            return jsonify({"comparison": followup.content})
+
+    return jsonify({"answer": response.content})
+
 
 
 # put flowchart api here

@@ -1,8 +1,7 @@
 import re
 from tavily import TavilyClient
 import os
-from vertexai.generative_models import Tool, FunctionDeclaration, GenerativeModel
-import json
+from vertexai.generative_models import Tool, FunctionDeclaration
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -15,22 +14,26 @@ def extract_interest_rate(summary: str) -> float:
     Returns a float (e.g., 12.0 for 12%) or None if not found.
     """
     match = re.search(r'(\d+(?:\.\d+)?)\s*%.*interest', summary, re.IGNORECASE)
+    print('Extracted agreement rate:', match)
     if match:
         return float(match.group(1))
     return None
 
-def tavily_search_tool(query: str) -> str:
+def tavily_search_tool(query: str) -> list:
     """
-    Wrapper around Tavily search, returning raw text results for Gemini to interpret.
+    Search Tavily for current loan interest rates.
+    Returns a list of dicts with bank name, rate, and URL.
     """
-    search_results = tavily_client.search(query, max_results=10)
-    texts = []
+    search_results = tavily_client.search(query, max_results=5)
+    parsed = []
     for r in search_results.get("results", []):
-        snippet = r.get("content", "")
-        link = r.get("url", "")
-        title = r.get("title", "")
-        texts.append(f"{title} :: {snippet} (Link: {link})")
-    return "\n".join(texts)
+        parsed.append({
+            "title": r.get("title", ""),
+            "snippet": r.get("content", ""),
+            "url": r.get("url", "")
+        })
+    print("✅ Tavily Search Done")
+    return parsed
 
 
 # Define the tool function
