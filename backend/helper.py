@@ -48,34 +48,3 @@ search_func = FunctionDeclaration(
 
 search_tool = Tool(function_declarations=[search_func])
 
-def find_better_loan_options(summary: str):
-    # Step A: extract interest rate
-    agreement_rate = extract_interest_rate(summary)
-    if not agreement_rate:
-        return {"error": "Could not extract interest rate from summary"}
-    
-    # Step B: let Gemini reason with web tool
-    prompt = f"""
-    The loan agreement has an interest rate of {agreement_rate}%.
-    Use the search_web tool to look up current personal loan interest rates in India (Sep 2025).
-    Find banks offering lower rates than {agreement_rate}%.
-    
-    Return a JSON list with objects like:
-    {{
-      "bank": "<Bank Name>",
-      "rate": <float>,
-      "application_link": "<URL>",
-      "advice": "<short one-line advice>"
-    }}
-    """
-    
-    response = generation_model.generate_content(
-        prompt,
-        tools=[search_tool],
-        tool_config={"function_calling_config": "AUTO"}  # let Gemini decide when to call
-    )
-    
-    try:
-        return json.loads(response.text.strip())
-    except:
-        return {"raw_response": response.text}
