@@ -6,8 +6,12 @@ from dotenv import load_dotenv
 import vertexai
 from sentence_transformers import SentenceTransformer
 import re
+import json5
+
 from pinecone import Pinecone
+
 from vertexai.generative_models import GenerativeModel
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 load_dotenv()
 
@@ -19,6 +23,7 @@ vertexai.init(project=PROJECT_ID, location=REGION)
 
 generation_model = GenerativeModel("gemini-2.5-pro")
 embedding_model = SentenceTransformer("sentence-transformers/all-mpnet-base-v2")  
+llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash",api_key = "AIzaSyAPHug8W6bKdXgujjDXdtURjIlreVL_P3s")
 
 PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
 RENTAL_INDEX_NAME = "karnataka-rental-lows"
@@ -29,14 +34,15 @@ rental_pinecone_index = pc.Index(RENTAL_INDEX_NAME)
 employment_pinecone_index = pc.Index(EMPLOYMENT_INDEX_NAME)
 loan_pinecone_index = pc.Index(LOAN_INDEX_NAME)
 
+
 print("Initializations complete. Server is ready.")
 
 def process_contract(document_text: str, summary_prompt: str, analysis_prompt_template: str, pinecone_index):
     # --- Stage 1: High-level summary ---
     print("starting stage 1: high-level summary...")
     try:
-        summary_response = generation_model.generate_content(summary_prompt.format(document_text=document_text))
-        summary_result = summary_response.text.strip()
+        summary_response = llm.invoke(summary_prompt.format(document_text=document_text))
+        summary_result = summary_response.content.strip()
         print("✅ summary generated successfully.")
     except Exception as e:
         print(f"❌ error during summary generation: {e}")
@@ -75,9 +81,21 @@ def process_contract(document_text: str, summary_prompt: str, analysis_prompt_te
                 similar_clauses_context=similar_clauses_context
             )
 
-            analysis_response = generation_model.generate_content(analysis_prompt)
-            clean_json_string = analysis_response.text.strip().replace('```json', '').replace('```', '')
-            analysis_json = json.loads(clean_json_string)
+            analysis_response = llm.invoke(analysis_prompt)
+            raw_output = analysis_response.content
+
+            if isinstance(raw_output, list):
+                raw_output = " ".join(
+                    [c.get("text", "") if isinstance(c, dict) else str(c) for c in raw_output]
+                )
+
+            clean_json_string = str(raw_output).strip()
+            clean_json_string = clean_json_string.replace("```json", "").replace("```", "")
+
+            try:
+                analysis_json = json.loads(clean_json_string)
+            except json.JSONDecodeError:
+                analysis_json = json5.loads(clean_json_string)
 
             risk_analysis_results.append({
                 "original_clause": chunk,
@@ -90,8 +108,7 @@ def process_contract(document_text: str, summary_prompt: str, analysis_prompt_te
     print("✅ detailed analysis complete.")
     return {
         "summary": summary_result,
-        "detailed_analysis": risk_analysis_results,
-        "flowchart": mermaid_code
+        "detailed_analysis": risk_analysis_results
     }
 
 
@@ -180,7 +197,6 @@ Return ONLY a VALID JSON object with EXACTLY these keys:
 **Expert Context from Knowledge Base:**
 {similar_clauses_context}
 """
-
 # ---- Loan Prompts ----
 loan_summary_prompt = """
 You are a helpful assistant who explains legal documents in simple, plain English for someone in Bengaluru, Karnataka as of August 2025.
@@ -244,7 +260,6 @@ def loan_response(document_text: str):
         analysis_prompt_template=loan_analysis_prompt,
         pinecone_index=loan_pinecone_index
     ))
-
 
 # ---- Endpoint ----
 @app.route('/analyze', methods=['POST'])
@@ -310,8 +325,8 @@ def chatbot():
     """
 
     try:
-        response = generation_model.generate_content(context)
-        answer = response.text.strip()
+        response = llm.invoke(context)
+        answer = response.content.strip()
         return jsonify({"answer": answer})
     except Exception as e:
         print(f"❌ error during chatbot response: {e}")
@@ -365,7 +380,7 @@ def parse_summary(summary: str) -> str:
 
 def detect_contract_type(document_text: str) -> str:
     """
-    Identify contract type from text. Returns one of 'rental', 'employment', 'loan' or 'unknown'.
+    Identify contract type from text. Returns one of 'rental', 'employment', or 'unknown'.
     """
     try:
         classification_prompt = f"""
@@ -375,13 +390,14 @@ def detect_contract_type(document_text: str) -> str:
         - Employment Agreement
         - Loan Agreement
 
+
         Return only one word: "rental", "employment", "loan".
 
         Document:
         {document_text[:3000]}  # truncate to avoid token overload
         """
-        response = generation_model.generate_content(classification_prompt)
-        label = response.text.strip().lower()
+        response = llm.invoke(classification_prompt)
+        label = response.content.strip().lower()
 
         if "rental" in label:
             return "rental"
