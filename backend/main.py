@@ -31,7 +31,33 @@ loan_pinecone_index = pc.Index(LOAN_INDEX_NAME)
 
 print("Initializations complete. Server is ready.")
 
-def process_contract(document_text: str, summary_prompt: str, analysis_prompt_template: str, pinecone_index):
+key_entity_extraction_prompt = """
+You are an expert at extracting key entities from legal documents.
+From the document text below, identify and list all important entities.
+Group them under the following categories:
+- Parties (names of people, companies, or organizations)
+- Dates (specific dates mentioned)
+- Monetary Amounts (rent, salary, loan amounts, deposits, etc.)
+- Locations (addresses, cities, etc.)
+
+Present the result as a clean, bulleted list. If no entities are found for a category, omit the category.
+
+Document Text:
+\"\"\"{document_text}\"\"\"
+"""
+
+def process_contract(document_text: str, summary_prompt: str, analysis_prompt_template: str, pinecone_index, contract_type: str):
+    # --- New Stage 0: Key Entity Extraction ---
+    print("starting stage 0: key entity extraction...")
+    try:
+        entity_prompt = key_entity_extraction_prompt.format(document_text=document_text)
+        entity_response = generation_model.generate_content(entity_prompt)
+        key_entities_result = entity_response.text.strip()
+        print("✅ key entities extracted successfully.")
+    except Exception as e:
+        print(f"❌ error during key entity extraction: {e}")
+        key_entities_result = "Could not extract key entities from this document."
+    
     # --- Stage 1: High-level summary ---
     print("starting stage 1: high-level summary...")
     try:
@@ -42,10 +68,25 @@ def process_contract(document_text: str, summary_prompt: str, analysis_prompt_te
         print(f"❌ error during summary generation: {e}")
         summary_result = "Could not generate a summary for this document."
 
+    # --- New Stage 1.5: In-Hand Salary Calculation (for employment contracts) ---
+    salary_analysis_result = None
+    if contract_type == 'employment':
+        print("starting stage 1.5: in-hand salary analysis...")
+        try:
+            salary_prompt = salary_extraction_prompt.format(document_text=document_text)
+            salary_response = generation_model.generate_content(salary_prompt)
+            clean_json_string = salary_response.text.strip().replace('```json', '').replace('```', '')
+            salary_components = json.loads(clean_json_string)
+            salary_analysis_result = calculate_in_hand_salary(salary_components)
+            print("✅ in-hand salary analysis complete.")
+        except Exception as e:
+            print(f"❌ error during salary analysis: {e}")
+            salary_analysis_result = {"error": "Could not perform salary analysis."}
+
     mermaid_code = get_flowchart_mermaid_from_summary(summary_result)
 
     # --- Stage 2: Clause-by-clause analysis ---
-    print("🚀 starting stage 2: detailed clause analysis...")
+    print("starting stage 2: detailed clause analysis...")
     chunks = [chunk for chunk in re.split(r'\n\s*\n', document_text) if len(chunk.strip()) > 100]
     risk_analysis_results = []
 
@@ -88,11 +129,16 @@ def process_contract(document_text: str, summary_prompt: str, analysis_prompt_te
             continue
 
     print("✅ detailed analysis complete.")
-    return {
+    response_data = {
+        "key_entities": key_entities_result,
         "summary": summary_result,
         "detailed_analysis": risk_analysis_results,
         "flowchart": mermaid_code
     }
+    if salary_analysis_result:
+        response_data["salary_analysis"] = salary_analysis_result
+        
+    return response_data
 
 
 # ---- Rental Prompts ----
@@ -181,6 +227,32 @@ Return ONLY a VALID JSON object with EXACTLY these keys:
 {similar_clauses_context}
 """
 
+salary_extraction_prompt = """
+You are an expert financial analyst reading an Indian employment offer letter. Your goal is to determine the monthly salary components.
+
+**Primary Task:**
+First, try to find the explicit monthly values for:
+- Basic Salary
+- House Rent Allowance (HRA)
+- Special Allowance
+
+**Contingency Plan:**
+If the document only mentions a total "Cost to Company" (CTC) or "Gross Annual Salary", you must estimate the monthly components based on standard Indian salary structures. A common structure is:
+- **Basic Salary:** 40% of the annual CTC, divided by 12.
+- **HRA:** 50% of the monthly Basic Salary.
+- **Special Allowance:** The remaining amount to make up the total monthly salary.
+
+**Instructions:**
+1.  Read the document text provided.
+2.  If explicit monthly components are present, use them.
+3.  If only an annual total is present, calculate the estimated monthly components.
+4.  Return ONLY a valid JSON object with EXACTLY these keys: "basic_salary", "hra", "special_allowance".
+5.  The values must be numbers. If a component cannot be found or calculated, use 0.
+
+Document Text:
+\"\"\"{document_text}\"\"\"
+"""
+
 # ---- Loan Prompts ----
 loan_summary_prompt = """
 You are a helpful assistant who explains legal documents in simple, plain English for someone in Bengaluru, Karnataka as of August 2025.
@@ -226,7 +298,8 @@ def rental_response(document_text: str):
         document_text,
         summary_prompt=rental_summary_prompt,
         analysis_prompt_template=rental_analysis_prompt,
-        pinecone_index=rental_pinecone_index
+        pinecone_index=rental_pinecone_index,
+        contract_type='rental'
     ))
 
 def employment_response(document_text: str):
@@ -234,7 +307,8 @@ def employment_response(document_text: str):
         document_text,
         summary_prompt=employment_summary_prompt,
         analysis_prompt_template=employment_analysis_prompt,
-        pinecone_index=employment_pinecone_index
+        pinecone_index=employment_pinecone_index,
+        contract_type='employment'
     ))
 
 def loan_response(document_text: str):
@@ -242,7 +316,8 @@ def loan_response(document_text: str):
         document_text,
         summary_prompt=loan_summary_prompt,
         analysis_prompt_template=loan_analysis_prompt,
-        pinecone_index=loan_pinecone_index
+        pinecone_index=loan_pinecone_index,
+        contract_type='loan'
     ))
 
 
@@ -394,6 +469,59 @@ def detect_contract_type(document_text: str) -> str:
     except Exception as e:
         print(f"❌ error in contract classification: {e}")
         return "unknown"
+
+def calculate_in_hand_salary(salary_components: dict) -> dict:
+    """Calculates in-hand salary based on extracted components for Karnataka."""
+    try:
+        basic = salary_components.get("basic_salary", 0)
+        hra = salary_components.get("hra", 0)
+        special_allowance = salary_components.get("special_allowance", 0)
+
+        if basic == 0:
+            return {"error": "Basic Salary could not be determined, cannot calculate in-hand salary."}
+
+        gross_monthly = basic + hra + special_allowance
+        annual_gross = gross_monthly * 12
+
+        # 1. Employee PF Deduction (12% of Basic)
+        employee_pf = 0.12 * basic
+
+        # 2. Professional Tax (Karnataka)
+        professional_tax = 200 if gross_monthly > 15000 else 0
+
+        # 3. Estimated TDS (using New Tax Regime slabs for 2025-26)
+        # Standard Deduction of 50,000 is available in the new regime
+        taxable_income = annual_gross - 50000
+        annual_tax = 0
+        if taxable_income > 1500000:
+            annual_tax = 150000 + (taxable_income - 1500000) * 0.30
+        elif taxable_income > 1200000:
+            annual_tax = 90000 + (taxable_income - 1200000) * 0.20
+        elif taxable_income > 900000:
+            annual_tax = 45000 + (taxable_income - 900000) * 0.15
+        elif taxable_income > 600000:
+            annual_tax = 15000 + (taxable_income - 600000) * 0.10
+        elif taxable_income > 300000:
+            annual_tax = (taxable_income - 300000) * 0.05
+        
+        monthly_tds = annual_tax / 12 if annual_tax > 0 else 0
+
+        # Final Calculation
+        total_deductions = employee_pf + professional_tax + monthly_tds
+        in_hand_salary = gross_monthly - total_deductions
+
+        return {
+            "estimated_monthly_in_hand": round(in_hand_salary),
+            "gross_monthly_salary": round(gross_monthly),
+            "deductions": {
+                "employee_pf": round(employee_pf),
+                "professional_tax": round(professional_tax),
+                "estimated_tds": round(monthly_tds),
+                "total_deductions": round(total_deductions)
+            }
+        }
+    except Exception as e:
+        return {"error": f"An error occurred during salary calculation: {e}"}
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)),debug=True)
