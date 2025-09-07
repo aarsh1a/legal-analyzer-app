@@ -483,14 +483,10 @@ def calculate_in_hand_salary(salary_components: dict) -> dict:
         gross_monthly = basic + hra + special_allowance
         annual_gross = gross_monthly * 12
 
-        # 1. Employee PF Deduction (12% of Basic)
         employee_pf = 0.12 * basic
 
-        # 2. Professional Tax (Karnataka)
         professional_tax = 200 if gross_monthly > 15000 else 0
 
-        # 3. Estimated TDS (using New Tax Regime slabs for 2025-26)
-        # Standard Deduction of 50,000 is available in the new regime
         taxable_income = annual_gross - 50000
         annual_tax = 0
         if taxable_income > 1500000:
