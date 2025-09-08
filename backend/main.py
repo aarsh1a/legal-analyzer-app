@@ -318,7 +318,7 @@ def chatbot():
         print(f"❌ error during chatbot response: {e}")
         return jsonify({"error": "Could not generate a response."}), 500
 
-@app.route('/compare-loan-rates-auto', methods=['POST'])
+@app.route('/loan_comparison', methods=['POST'])
 def compare_loan_rates_auto():
     data = request.get_json()
     if not data or 'summary' not in data:
