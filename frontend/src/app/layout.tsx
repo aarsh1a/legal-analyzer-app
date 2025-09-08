@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import VisualEditsMessenger from "../visual-edits/VisualEditsMessenger";
 import ErrorReporter from "@/components/ErrorReporter";
+import { Toaster } from "@/components/ui/sonner";
 import Script from "next/script";
 
 export const metadata: Metadata = {
@@ -29,6 +30,20 @@ export default function RootLayout({
           data-custom-data='{"appName": "YourApp", "version": "1.0.0", "greeting": "hi"}'
         />
         {children}
+        <Toaster 
+          position="bottom-right"
+          toastOptions={{
+            style: {
+              background: 'white',
+              color: 'var(--color-gray-900)',
+              border: '1px solid var(--color-gray-100)',
+              borderRadius: '12px',
+              fontSize: '14px',
+              fontFamily: 'var(--font-roboto)',
+              boxShadow: '0 4px 8px 3px rgba(60, 64, 67, 0.15)',
+            },
+          }}
+        />
         <VisualEditsMessenger />
       </body>
     </html>

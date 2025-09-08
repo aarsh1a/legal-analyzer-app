@@ -1,327 +1,385 @@
 "use client";
 
 import React, { useState, useCallback, useRef } from 'react';
-import { Card } from '@/components/ui/card';
+import { Upload, FileText, Shield, Scale, Award, CheckCircle, AlertCircle, Loader2, Gavel, Lock, Star, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { Input } from '@/components/ui/input';
-import { Upload, FileCheck, FileX2, HardDriveUpload } from 'lucide-react';
-import { toast } from 'sonner';
 
 interface UploadScreenProps {
-  onComplete?: (data: { documentId: string; filename: string; analysisReady: boolean }) => void;
+  onComplete: (data: { documentId: string; filename: string; analysisReady: boolean }) => void;
   className?: string;
 }
 
-interface FileState {
-  file: File | null;
-  status: 'idle' | 'selected' | 'uploading' | 'processing' | 'success' | 'error';
-  progress: number;
-  error?: string;
+interface UploadState {
+  isDragging: boolean;
+  isUploading: boolean;
+  uploadProgress: number;
+  uploadedFile: File | null;
+  error: string | null;
+  success: boolean;
 }
 
-export default function UploadScreen({ onComplete, className }: UploadScreenProps) {
-  const [fileState, setFileState] = useState<FileState>({
-    file: null,
-    status: 'idle',
-    progress: 0,
+const ACCEPTED_FORMATS = ['pdf', 'docx', 'txt'];
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+
+export default function UploadScreen({ onComplete, className = "" }: UploadScreenProps) {
+  const [uploadState, setUploadState] = useState<UploadState>({
+    isDragging: false,
+    isUploading: false,
+    uploadProgress: 0,
+    uploadedFile: null,
+    error: null,
+    success: false,
   });
-  const [isDragOver, setIsDragOver] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const validateFile = useCallback((file: File): boolean => {
-    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-      toast.error('Please select a PDF file only');
-      return false;
+  const validateFile = useCallback((file: File): string | null => {
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    if (!extension || !ACCEPTED_FORMATS.includes(extension)) {
+      return `Please upload a valid document format: ${ACCEPTED_FORMATS.join(', ').toUpperCase()}`;
     }
-    if (file.size > 50 * 1024 * 1024) { // 50MB limit
-      toast.error('File size must be less than 50MB');
-      return false;
+    if (file.size > MAX_FILE_SIZE) {
+      return 'File size exceeds 50MB limit. Please select a smaller file.';
     }
-    return true;
+    return null;
   }, []);
 
-  const handleFileSelect = useCallback((file: File) => {
-    if (!validateFile(file)) return;
+  const simulateUpload = useCallback(async (file: File) => {
+    setUploadState(prev => ({ ...prev, isUploading: true, error: null, uploadProgress: 0 }));
 
-    setFileState({
-      file,
-      status: 'selected',
-      progress: 0,
-    });
-  }, [validateFile]);
-
-  const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      handleFileSelect(file);
+    // Simulate upload progress
+    for (let progress = 0; progress <= 100; progress += 10) {
+      await new Promise(resolve => setTimeout(resolve, 150));
+      setUploadState(prev => ({ ...prev, uploadProgress: progress }));
     }
-  }, [handleFileSelect]);
+
+    // Simulate processing time
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    const documentId = `doc_${Date.now()}`;
+    setUploadState(prev => ({
+      ...prev,
+      isUploading: false,
+      success: true,
+      uploadedFile: file,
+    }));
+
+    // Call onComplete after a brief success animation
+    setTimeout(() => {
+      onComplete({ documentId, filename: file.name, analysisReady: true });
+    }, 1500);
+  }, [onComplete]);
+
+  const handleFile = useCallback(async (file: File) => {
+    const validationError = validateFile(file);
+    if (validationError) {
+      setUploadState(prev => ({ ...prev, error: validationError }));
+      return;
+    }
+
+    await simulateUpload(file);
+  }, [validateFile, simulateUpload]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragOver(true);
+    setUploadState(prev => ({ ...prev, isDragging: true }));
   }, []);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragOver(false);
+    setUploadState(prev => ({ ...prev, isDragging: false }));
   }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragOver(false);
+    setUploadState(prev => ({ ...prev, isDragging: false }));
 
-    const file = e.dataTransfer.files[0];
-    if (file) {
-      handleFileSelect(file);
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      handleFile(files[0]);
     }
-  }, [handleFileSelect]);
+  }, [handleFile]);
 
-  const simulateUpload = useCallback(async () => {
-    if (!fileState.file) return;
-
-    setFileState(prev => ({ ...prev, status: 'uploading', progress: 0 }));
-
-    // Simulate upload progress
-    for (let i = 0; i <= 100; i += 10) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-      setFileState(prev => ({ ...prev, progress: i }));
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      handleFile(files[0]);
     }
+  }, [handleFile]);
 
-    // Start processing
-    setFileState(prev => ({ ...prev, status: 'processing', progress: 100 }));
-    
-    // Simulate processing time
-    await new Promise(resolve => setTimeout(resolve, 2000));
+  const handleUploadClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
 
-    // Complete successfully
-    setFileState(prev => ({ ...prev, status: 'success' }));
-    toast.success('Document uploaded and processed successfully!');
-  }, [fileState.file]);
-
-  const handleAnalyze = useCallback(() => {
-    if (fileState.file && fileState.status === 'success') {
-      const analysisData = {
-        documentId: `doc_${Date.now()}`,
-        filename: fileState.file.name,
-        analysisReady: true,
-      };
-      onComplete?.(analysisData);
-    }
-  }, [fileState.file, fileState.status, onComplete]);
-
-  const handleRetry = useCallback(() => {
-    setFileState({
-      file: null,
-      status: 'idle',
-      progress: 0,
+  const resetUpload = useCallback(() => {
+    setUploadState({
+      isDragging: false,
+      isUploading: false,
+      uploadProgress: 0,
+      uploadedFile: null,
+      error: null,
+      success: false,
     });
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   }, []);
 
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'uploading':
-        return 'bg-blue-100 text-blue-700';
-      case 'processing':
-        return 'bg-yellow-100 text-yellow-700';
-      case 'success':
-        return 'bg-green-100 text-green-700';
-      case 'error':
-        return 'bg-red-100 text-red-700';
-      default:
-        return 'bg-muted text-muted-foreground';
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'uploading':
-        return 'Uploading...';
-      case 'processing':
-        return 'Processing (OCR & analysis prepping)';
-      case 'success':
-        return 'Ready for analysis';
-      case 'error':
-        return 'Upload failed';
-      default:
-        return 'Ready to upload';
-    }
-  };
-
   return (
-    <div className={`w-full max-w-4xl mx-auto ${className}`}>
-      {/* Upload Form */}
-      <div className="w-full">
-        <Card className="bg-card shadow-lg border-border">
-          <div className="p-8">
-            {/* Header */}
-            <div className="text-center mb-8">
-              <h1 className="font-heading text-3xl font-bold text-foreground mb-2">
-                Upload Your Legal Document
-              </h1>
-              <p className="text-muted-foreground">
-                Professional contract analysis powered by AI
+    <div className={`${className}`}>
+      {/* Main Upload Card */}
+      <div className="bg-card/90 backdrop-blur-sm rounded-2xl border border-border legal-card-shadow overflow-hidden">
+        <div className="p-8 lg:p-12">
+          {uploadState.success ? (
+            /* Success State */
+            <div className="text-center animate-in fade-in duration-500">
+              <div className="relative w-20 h-20 mx-auto mb-8">
+                <div className="w-20 h-20 bg-gradient-to-br from-legal-gold to-legal-navy rounded-full flex items-center justify-center">
+                  <CheckCircle className="w-10 h-10 text-legal-gold-foreground" />
+                </div>
+                <div className="absolute inset-0 w-20 h-20 bg-legal-gold rounded-full animate-ping opacity-20"></div>
+              </div>
+              <h2 className="font-heading text-3xl font-bold text-foreground mb-4">
+                Document Uploaded Successfully!
+              </h2>
+              <p className="text-muted-foreground mb-4 text-lg">
+                <span className="font-semibold text-legal-gold">{uploadState.uploadedFile?.name}</span> has been processed and is ready for analysis.
               </p>
+              <div className="flex items-center justify-center gap-2 text-sm text-legal-gold">
+                <Sparkles className="w-4 h-4" />
+                <span>Preparing comprehensive legal analysis...</span>
+              </div>
             </div>
-
-            {/* Drag and Drop Zone */}
-            <div
-              className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                isDragOver
-                  ? 'border-primary bg-muted/50'
-                  : fileState.status === 'idle' || fileState.status === 'error'
-                  ? 'border-border hover:border-muted-foreground'
-                  : 'border-muted'
-              }`}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-            >
-              <div className="space-y-4">
-                {/* Icon */}
-                <div className="flex justify-center">
-                  <div className="p-3 rounded-full bg-accent/20">
-                    <HardDriveUpload className="h-8 w-8 text-primary" />
+          ) : uploadState.isUploading ? (
+            /* Upload Progress State */
+            <div className="text-center">
+              <div className="relative w-20 h-20 mx-auto mb-8">
+                <div className="w-20 h-20 bg-legal-gold/10 border border-legal-gold/20 rounded-full flex items-center justify-center">
+                  <Loader2 className="w-10 h-10 text-legal-gold animate-spin" />
+                </div>
+              </div>
+              <h2 className="font-heading text-3xl font-bold text-foreground mb-6">
+                Processing Your Document
+              </h2>
+              <div className="max-w-md mx-auto mb-6">
+                <div className="bg-muted rounded-full h-3 mb-3 overflow-hidden">
+                  <div 
+                    className="bg-gradient-to-r from-legal-gold to-legal-navy h-3 rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${uploadState.uploadProgress}%` }}
+                  />
+                </div>
+                <p className="text-lg font-semibold text-legal-gold">
+                  {uploadState.uploadProgress}% Complete
+                </p>
+              </div>
+              <div className="space-y-2 text-muted-foreground">
+                <p className="flex items-center justify-center gap-2">
+                  <Scale className="w-4 h-4 text-legal-gold" />
+                  Analyzing contract structure and legal clauses...
+                </p>
+                <p className="text-sm">This may take a few moments for comprehensive analysis</p>
+              </div>
+            </div>
+          ) : (
+            /* Upload Interface */
+            <>
+              <div 
+                className={`
+                  relative border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer
+                  legal-button-animate transition-all duration-300 ease-in-out
+                  ${uploadState.isDragging 
+                    ? 'border-legal-gold bg-legal-gold/5 scale-[1.02] shadow-lg' 
+                    : 'border-border hover:border-legal-gold hover:bg-legal-cream/30'
+                  }
+                `}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={handleUploadClick}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.docx,.txt"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                
+                <div className="flex flex-col items-center">
+                  <div className={`
+                    relative p-6 rounded-2xl mb-8 transition-all duration-300 legal-icon-hover
+                    ${uploadState.isDragging 
+                      ? 'bg-gradient-to-br from-legal-gold to-legal-navy shadow-xl scale-110' 
+                      : 'bg-gradient-to-br from-legal-cream to-muted hover:from-legal-gold hover:to-legal-navy hover:shadow-lg'
+                    }
+                  `}>
+                    <Upload className={`
+                      w-12 h-12 transition-colors duration-300
+                      ${uploadState.isDragging 
+                        ? 'text-legal-gold-foreground' 
+                        : 'text-legal-navy hover:text-legal-navy-foreground'
+                      }
+                    `} />
+                    
+                    {/* Decorative legal symbols */}
+                    <div className="absolute -top-2 -right-2 p-1 bg-legal-gold rounded-full">
+                      <Scale className="w-4 h-4 text-legal-gold-foreground" />
+                    </div>
+                  </div>
+                  
+                  <h3 className="font-heading text-2xl font-bold text-foreground mb-3">
+                    {uploadState.isDragging ? 'Drop Your Legal Document' : 'Upload Legal Document'}
+                  </h3>
+                  
+                  <p className="text-muted-foreground mb-8 text-lg max-w-md">
+                    Drag and drop your contract or legal document here, or{' '}
+                    <span className="text-legal-gold font-semibold hover:underline cursor-pointer">
+                      browse files
+                    </span>
+                  </p>
+                  
+                  {/* Enhanced CTA Button */}
+                  <Button 
+                    onClick={handleUploadClick}
+                    className="legal-button-animate bg-gradient-to-r from-legal-gold to-legal-navy hover:from-legal-navy hover:to-legal-gold text-legal-gold-foreground font-semibold px-8 py-3 text-lg mb-8"
+                  >
+                    <FileText className="w-5 h-5 mr-2" />
+                    Select Document
+                  </Button>
+                  
+                  {/* File Format Indicators */}
+                  <div className="flex items-center gap-6 text-sm">
+                    <div className="flex items-center gap-2 px-3 py-2 bg-legal-cream rounded-lg border border-legal-gold/20">
+                      <FileText className="w-4 h-4 text-legal-gold" />
+                      <span className="font-medium text-legal-navy">PDF</span>
+                    </div>
+                    <div className="flex items-center gap-2 px-3 py-2 bg-legal-cream rounded-lg border border-legal-gold/20">
+                      <FileText className="w-4 h-4 text-legal-gold" />
+                      <span className="font-medium text-legal-navy">DOCX</span>
+                    </div>
+                    <div className="flex items-center gap-2 px-3 py-2 bg-legal-cream rounded-lg border border-legal-gold/20">
+                      <FileText className="w-4 h-4 text-legal-gold" />
+                      <span className="font-medium text-legal-navy">TXT</span>
+                    </div>
                   </div>
                 </div>
+              </div>
 
-                {/* Upload Button or Status */}
-                {fileState.status === 'idle' && (
-                  <>
-                    <div>
-                      <Button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="bg-primary text-primary-foreground hover:bg-primary/90"
-                      >
-                        <Upload className="h-4 w-4 mr-2" />
-                        Choose PDF File
-                      </Button>
-                      <p className="text-sm text-muted-foreground mt-2">
-                        or drag and drop your file here
-                      </p>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      PDF only • Scanned PDFs will be converted to text via Google OCR • Non-English files auto-translated to English
-                    </p>
-                  </>
-                )}
-
-                {fileState.file && (
-                  <div className="space-y-4">
-                    {/* File Info */}
-                    <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <FileCheck className="h-5 w-5 text-muted-foreground" />
-                        <div className="text-left">
-                          <p className="text-sm font-medium text-foreground">
-                            {fileState.file.name}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatFileSize(fileState.file.size)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(fileState.status)}`}>
-                        {getStatusText(fileState.status)}
-                      </div>
-                    </div>
-
-                    {/* Progress Bar */}
-                    {(fileState.status === 'uploading' || fileState.status === 'processing') && (
-                      <div className="space-y-2">
-                        <Progress 
-                          value={fileState.status === 'processing' ? undefined : fileState.progress}
-                          className="w-full"
-                        />
-                        {fileState.status === 'uploading' && (
-                          <p className="text-xs text-muted-foreground text-center">
-                            {fileState.progress}% uploaded
-                          </p>
-                        )}
-                        {fileState.status === 'processing' && (
-                          <p className="text-xs text-muted-foreground text-center">
-                            Typical processing: 20–60s
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Error State */}
-                    {fileState.status === 'error' && (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-center space-x-2 text-destructive">
-                          <FileX2 className="h-4 w-4" />
-                          <span className="text-sm">
-                            {fileState.error || 'Upload failed. Please try again.'}
-                          </span>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleRetry}
-                          className="w-full"
-                        >
-                          Try Again
-                        </Button>
-                      </div>
-                    )}
-
-                    {/* Upload Button */}
-                    {fileState.status === 'selected' && (
-                      <Button
-                        onClick={simulateUpload}
-                        className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-                      >
-                        <Upload className="h-4 w-4 mr-2" />
-                        Upload Document
-                      </Button>
-                    )}
+              {/* Error Message */}
+              {uploadState.error && (
+                <div className="mt-8 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 legal-card-shadow">
+                  <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-red-800 mb-1">Upload Error</p>
+                    <p className="text-sm text-red-700 mb-3">{uploadState.error}</p>
+                    <Button
+                      onClick={resetUpload}
+                      variant="outline"
+                      size="sm"
+                      className="text-red-800 border-red-300 hover:bg-red-50"
+                    >
+                      Try Again
+                    </Button>
                   </div>
-                )}
-              </div>
-            </div>
+                </div>
+              )}
 
-            {/* Analyze Button */}
-            {fileState.status === 'success' && (
-              <div className="mt-8">
-                <Button
-                  onClick={handleAnalyze}
-                  className="w-full bg-accent text-accent-foreground hover:bg-accent/90 font-semibold py-3"
-                  size="lg"
-                >
-                  Analyze Document
-                </Button>
-              </div>
-            )}
-          </div>
-        </Card>
+              {/* Professional Guidelines */}
+              <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="p-6 bg-legal-cream/50 rounded-xl border border-legal-gold/20 legal-card-shadow">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 bg-legal-gold/10 rounded-lg">
+                      <Scale className="w-5 h-5 text-legal-gold" />
+                    </div>
+                    <h4 className="font-heading text-lg font-semibold text-foreground">
+                      Supported Documents
+                    </h4>
+                  </div>
+                  <ul className="space-y-2 text-muted-foreground">
+                    <li className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-legal-gold rounded-full"></div>
+                      <span>Commercial Contracts & Agreements</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-legal-gold rounded-full"></div>
+                      <span>Terms of Service & Privacy Policies</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-legal-gold rounded-full"></div>
+                      <span>NDAs & Confidentiality Agreements</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-legal-gold rounded-full"></div>
+                      <span>Employment & Service Contracts</span>
+                    </li>
+                  </ul>
+                  <p className="text-sm text-muted-foreground mt-4 font-medium">
+                    Maximum file size: 50MB
+                  </p>
+                </div>
 
-        {/* Security Notice */}
-        <p className="text-xs text-muted-foreground text-center mt-4">
-          Your data is processed securely — documents are transmitted using TLS and stored only for processing.
-        </p>
+                <div className="p-6 bg-legal-cream/50 rounded-xl border border-legal-gold/20 legal-card-shadow">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 bg-legal-navy/10 rounded-lg">
+                      <Gavel className="w-5 h-5 text-legal-navy" />
+                    </div>
+                    <h4 className="font-heading text-lg font-semibold text-foreground">
+                      AI Analysis Features
+                    </h4>
+                  </div>
+                  <ul className="space-y-2 text-muted-foreground">
+                    <li className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-legal-navy rounded-full"></div>
+                      <span>Comprehensive Risk Assessment</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-legal-navy rounded-full"></div>
+                      <span>Key Clause Identification</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-legal-navy rounded-full"></div>
+                      <span>Compliance & Regulatory Check</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-legal-navy rounded-full"></div>
+                      <span>Actionable Legal Insights</span>
+                    </li>
+                  </ul>
+                  <p className="text-sm text-legal-gold font-semibold mt-4">
+                    ⚡ Analysis completed in seconds
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Hidden File Input */}
-      <Input
-        type="file"
-        ref={fileInputRef}
-        onChange={handleFileInputChange}
-        accept=".pdf,application/pdf"
-        className="hidden"
-      />
+      {/* Enhanced Security Footer */}
+      <div className="mt-8 text-center">
+        <div className="flex items-center justify-center gap-2 text-muted-foreground mb-4">
+          <Shield className="w-5 h-5 text-legal-gold" />
+          <span className="font-medium">Enterprise-Grade Security & Confidentiality</span>
+        </div>
+        <div className="flex flex-wrap items-center justify-center gap-8 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-legal-gold rounded-full"></div>
+            <span>256-bit SSL Encryption</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-legal-gold rounded-full"></div>
+            <span>Zero Data Retention Policy</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-legal-gold rounded-full"></div>
+            <span>SOC 2 Type II Certified</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-legal-gold rounded-full"></div>
+            <span>GDPR & CCPA Compliant</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

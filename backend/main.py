@@ -57,7 +57,20 @@ def process_contract(document_text: str, summary_prompt: str, analysis_prompt_te
     except Exception as e:
         print(f"❌ error during key entity extraction: {e}")
         key_entities_result = "Could not extract key entities from this document."
-    
+
+    # --- Stage 0.5: Date Extraction for Calendar ---
+    print("starting stage 0.5: date extraction for calendar...")
+    calendar_events = []
+    try:
+        date_prompt = date_extraction_prompt.format(document_text=document_text)
+        date_response = generation_model.generate_content(date_prompt)
+        clean_json_string = date_response.text.strip().replace('```json', '').replace('```', '')
+        calendar_events = json.loads(clean_json_string)
+        print("✅ calendar events extracted successfully.")
+    except Exception as e:
+        print(f"❌ error during date extraction: {e}")
+        calendar_events = []
+
     # --- Stage 1: High-level summary ---
     print("starting stage 1: high-level summary...")
     try:
@@ -131,6 +144,7 @@ def process_contract(document_text: str, summary_prompt: str, analysis_prompt_te
     print("✅ detailed analysis complete.")
     response_data = {
         "key_entities": key_entities_result,
+        "calendar_events": calendar_events,
         "summary": summary_result,
         "detailed_analysis": risk_analysis_results,
         "flowchart": mermaid_code
@@ -248,6 +262,31 @@ If the document only mentions a total "Cost to Company" (CTC) or "Gross Annual S
 3.  If only an annual total is present, calculate the estimated monthly components.
 4.  Return ONLY a valid JSON object with EXACTLY these keys: "basic_salary", "hra", "special_allowance".
 5.  The values must be numbers. If a component cannot be found or calculated, use 0.
+
+Document Text:
+\"\"\"{document_text}\"\"\"
+"""
+date_extraction_prompt = """
+You are an expert at identifying important dates in legal documents.
+Analyze the document below and extract all key dates and their significance.
+
+**Instructions:**
+1.  Identify dates like start dates, end dates, notice deadlines, payment due dates, etc.
+2.  For each date, provide a clear, concise description of what it represents.
+3.  Format the output as a valid JSON array of objects. Each object must have two keys: "date" (in YYYY-MM-DD format) and "description" (a string).
+4.  If no significant dates are found, return an empty array `[]`.
+
+**Example Output:**
+[
+  {
+    "date": "2025-09-10",
+    "description": "Employment Start Date"
+  },
+  {
+    "date": "2026-03-10",
+    "description": "Probation Period Ends"
+  }
+]
 
 Document Text:
 \"\"\"{document_text}\"\"\"

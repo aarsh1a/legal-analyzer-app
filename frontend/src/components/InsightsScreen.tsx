@@ -9,17 +9,33 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
-import { ChevronDown, ChevronUp, ChevronRight, Search, Filter, Download, Share2, Minimize2, Send, FileText, Scale, Users, MessageSquare, ArrowRight, Circle, AlertCircle, CheckCircle, AlertTriangle } from "lucide-react"
+import { ChevronDown, ChevronUp, ChevronRight, Search, Filter, Download, Share2, Minimize2, Send, FileText, Scale, Users, MessageSquare, ArrowRight, Circle, AlertCircle, CheckCircle, AlertTriangle, Building, User, Calendar, DollarSign } from "lucide-react"
 import { toast } from "sonner"
 
 // Dummy data structure
 const dummyData = {
   document: {
     title: "Master Service Agreement",
-    type: "Contract",
+    type: "Contract", 
     date: "2024-01-15",
     pages: 24,
     language: "English"
+  },
+  keyEntities: {
+    parties: [
+      { name: "TechCorp Solutions Inc.", role: "Service Provider", type: "company" },
+      { name: "Global Industries LLC", role: "Client", type: "company" }
+    ],
+    keyDates: [
+      { date: "2024-01-15", description: "Contract Effective Date" },
+      { date: "2024-12-31", description: "Initial Term Expiration" },
+      { date: "90 days prior", description: "Renewal Notice Required" }
+    ],
+    financialTerms: [
+      { amount: "$2.5M", description: "Annual Contract Value" },
+      { amount: "$2M+", description: "Potential Liability Exposure" },
+      { amount: "NET 60", description: "Payment Terms" }
+    ]
   },
   summary: {
     short: "This Master Service Agreement contains several high-risk clauses including unlimited liability exposure and automatic renewal terms. The indemnification clause places significant burden on the service provider.",
@@ -188,14 +204,14 @@ export default function InsightsScreen() {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-8">
           {/* Left Column - Main Content */}
           <div className="space-y-8">
-            {/* Summary Section */}
+            {/* Key Entity Box with Summary Inside */}
             <Card className="bg-card shadow-sm">
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <FileText className="w-5 h-5 text-muted-foreground" />
                     <div>
-                      <CardTitle className="font-heading text-xl">Executive Summary</CardTitle>
+                      <CardTitle className="font-heading text-xl">Key Entities & Executive Summary</CardTitle>
                       <CardDescription className="text-sm text-muted-foreground">
                         {dummyData.document.type} • {dummyData.document.date} • {dummyData.document.pages} pages • {dummyData.document.language}
                       </CardDescription>
@@ -213,7 +229,61 @@ export default function InsightsScreen() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
+                {/* Key Entities Grid */}
+                <div className="grid md:grid-cols-3 gap-6">
+                  {/* Parties */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Building className="w-4 h-4 text-muted-foreground" />
+                      <h4 className="font-medium text-sm text-foreground">Contract Parties</h4>
+                    </div>
+                    <div className="space-y-2">
+                      {dummyData.keyEntities.parties.map((party, index) => (
+                        <div key={index} className="bg-muted/50 rounded-lg p-3">
+                          <p className="font-medium text-sm text-foreground">{party.name}</p>
+                          <p className="text-xs text-muted-foreground">{party.role}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Key Dates */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-muted-foreground" />
+                      <h4 className="font-medium text-sm text-foreground">Important Dates</h4>
+                    </div>
+                    <div className="space-y-2">
+                      {dummyData.keyEntities.keyDates.map((dateItem, index) => (
+                        <div key={index} className="bg-muted/50 rounded-lg p-3">
+                          <p className="font-medium text-sm text-foreground">{dateItem.date}</p>
+                          <p className="text-xs text-muted-foreground">{dateItem.description}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Financial Terms */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="w-4 h-4 text-muted-foreground" />
+                      <h4 className="font-medium text-sm text-foreground">Financial Terms</h4>
+                    </div>
+                    <div className="space-y-2">
+                      {dummyData.keyEntities.financialTerms.map((term, index) => (
+                        <div key={index} className="bg-muted/50 rounded-lg p-3">
+                          <p className="font-medium text-sm text-foreground">{term.amount}</p>
+                          <p className="text-xs text-muted-foreground">{term.description}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Critical Finding Alert */}
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                   <div className="flex items-start gap-3">
                     <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5" />
@@ -224,7 +294,9 @@ export default function InsightsScreen() {
                   </div>
                 </div>
                 
+                {/* Summary Content */}
                 <div className="prose prose-sm max-w-none">
+                  <h4 className="font-medium text-foreground mb-3">Document Summary</h4>
                   <p className="text-foreground leading-relaxed">
                     {summaryExpanded ? dummyData.summary.full : dummyData.summary.short}
                   </p>
@@ -251,13 +323,13 @@ export default function InsightsScreen() {
               </CardContent>
             </Card>
 
-            {/* Risk Analysis Section */}
+            {/* Risk Flags Section */}
             <Card className="bg-card shadow-sm">
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <Scale className="w-5 h-5 text-muted-foreground" />
-                    <CardTitle className="font-heading text-xl">Risk Analysis</CardTitle>
+                    <CardTitle className="font-heading text-xl">Risk Flags</CardTitle>
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
