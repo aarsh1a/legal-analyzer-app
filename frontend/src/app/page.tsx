@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 
 import React, { useState, useCallback, useRef } from 'react';
 import { LandingPage } from '@/components/LandingPage';
@@ -58,10 +59,18 @@ export default function HomePage() {
               className="google-logo google-slide-in cursor-pointer" 
               onClick={handleBackToLanding}
             >
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-google-blue to-google-blue/80 flex items-center justify-center shadow-lg">
-                <FileText className="w-5 h-5 text-white" />
-              </div>
-              <span>Legal Document Analyzer</span>
+   <Image
+  src="/logo.jpg"
+  alt="App Logo"
+  width={200}
+  height={50}
+  className="rounded-2xl shadow-lg"
+/>
+
+
+
+              
+             
             </div>
 
             {/* Navigation & Powered by Gemini */}
