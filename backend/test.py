@@ -9,6 +9,7 @@ import re
 import json5
 
 from pinecone import Pinecone
+from flask_cors import CORS
 
 from vertexai.generative_models import GenerativeModel
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -17,6 +18,7 @@ from helper import extract_interest_rate, tavily_search_tool
 load_dotenv()
 
 app = Flask(__name__)
+CORS(app, origins=["http://localhost:3000"])
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID")
 REGION = os.environ.get("GCP_REGION")
@@ -24,7 +26,7 @@ vertexai.init(project=PROJECT_ID, location=REGION)
 
 generation_model = GenerativeModel("gemini-2.5-pro")
 embedding_model = SentenceTransformer("sentence-transformers/all-mpnet-base-v2")  
-llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash",api_key = "AIzaSyAPHug8W6bKdXgujjDXdtURjIlreVL_P3s")
+llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash",api_key = "AIzaSyAY50ve2al8rj13A9PdPnNCqS5VpVun6SI")
 llm_tools = llm.bind_tools([tavily_search_tool])
 
 PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
