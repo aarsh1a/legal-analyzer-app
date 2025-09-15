@@ -12,6 +12,7 @@ import {
   Shield,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import { askChatbot } from "@/utils/api";
 
 interface ResultsPageProps {
   analysisData: {
@@ -58,9 +59,10 @@ export function ResultsPage({ analysisData, onNewAnalysis }: ResultsPageProps) {
     },
   ]);
   const [chatInput, setChatInput] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSendMessage = () => {
-    if (!chatInput.trim()) return;
+  const handleSendMessage = async () => {
+    if (!chatInput.trim() || !analysisData.additionalData) return;
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
@@ -69,15 +71,33 @@ export function ResultsPage({ analysisData, onNewAnalysis }: ResultsPageProps) {
       timestamp: new Date(),
     };
 
-    const aiResponse: ChatMessage = {
-      id: (Date.now() + 1).toString(),
-      text: "I understand your concern. Let me analyze that clause in detail and provide specific recommendations based on legal best practices.",
-      sender: "ai",
-      timestamp: new Date(),
-    };
-
-    setChatMessages((prev) => [...prev, userMessage, aiResponse]);
+    setChatMessages((prev) => [...prev, userMessage]);
     setChatInput("");
+    setLoading(true);
+
+    try {
+      const response = await askChatbot(analysisData.additionalData, userMessage.text);
+      const aiMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        text: response?.answer || response?.summary || "No response available.",
+        sender: "ai",
+        timestamp: new Date(),
+      };
+      setChatMessages((prev) => [...prev, aiMessage]);
+    } catch (error) {
+      console.error("Chatbot error:", error);
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          text: "⚠️ Sorry, I couldn’t get a response from the chatbot.",
+          sender: "ai",
+          timestamp: new Date(),
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getRiskLevel = (level: string): RiskLevel => {
@@ -173,7 +193,7 @@ export function ResultsPage({ analysisData, onNewAnalysis }: ResultsPageProps) {
 
           {/* Split Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left Side - Main Content (2/3 width) */}
+            {/* Left Side */}
             <div className="lg:col-span-2 space-y-6">
               <div className="google-card">
                 <div className="border-b border-gray-200">
@@ -201,111 +221,101 @@ export function ResultsPage({ analysisData, onNewAnalysis }: ResultsPageProps) {
                   </nav>
                 </div>
 
-                {/* Tab Content */}
                 <div className="p-6">
                   {activeTab === "summary" && (
                     <div className="space-y-8">
-                      {/* Risk Flags Section */}
-                      <div>
-                        <h3 className="text-xl font-google-sans font-medium text-gray-900 mb-6">
-                          Risk Flags
-                        </h3>
-                        <div className="space-y-4">
-                          {analysisData.additionalData?.detailed_analysis?.map(
-                            (item, idx) => {
-                              const riskLevel = getRiskLevel(
-                                item.analysis.risk_level
-                              );
-                              return (
-                                <div
-                                  key={idx}
-                                  className={`google-card border-l-4 ${
-                                    getRiskColor(riskLevel)
-                                      .replace("text-", "border-")
-                                      .split(" ")[0]
-                                  }`}
-                                >
-                                  <div className="p-6 space-y-4">
-                                    <div className="flex items-start gap-3">
-                                      <div
-                                        className={`p-2 rounded-full ${getRiskColor(
+                      <h3 className="text-xl font-google-sans font-medium text-gray-900 mb-6">
+                        Risk Flags
+                      </h3>
+                      <div className="space-y-4">
+                        {analysisData.additionalData?.detailed_analysis?.map(
+                          (item, idx) => {
+                            const riskLevel = getRiskLevel(
+                              item.analysis.risk_level
+                            );
+                            return (
+                              <div
+                                key={idx}
+                                className={`google-card border-l-4 ${
+                                  getRiskColor(riskLevel)
+                                    .replace("text-", "border-")
+                                    .split(" ")[0]
+                                }`}
+                              >
+                                <div className="p-6 space-y-4">
+                                  <div className="flex items-start gap-3">
+                                    <div
+                                      className={`p-2 rounded-full ${getRiskColor(
+                                        riskLevel
+                                      )}`}
+                                    >
+                                      {getRiskIcon(riskLevel)}
+                                    </div>
+                                    <div className="flex-1 space-y-4">
+                                      <span
+                                        className={`text-xs font-google-sans font-medium px-2 py-1 rounded-full ${getRiskColor(
                                           riskLevel
                                         )}`}
                                       >
-                                        {getRiskIcon(riskLevel)}
-                                      </div>
-                                      <div className="flex-1 space-y-4">
-                                        <span
-                                          className={`text-xs font-google-sans font-medium px-2 py-1 rounded-full ${getRiskColor(
-                                            riskLevel
-                                          )}`}
-                                        >
-                                          {item.analysis.risk_level.toUpperCase()}
-                                        </span>
-                                        <blockquote className="text-gray-800 font-roboto italic border-l-2 border-gray-200 pl-4 my-3 text-base leading-relaxed">
-                                          {item.original_clause}
-                                        </blockquote>
+                                        {item.analysis.risk_level.toUpperCase()}
+                                      </span>
+                                      <blockquote className="text-gray-800 font-roboto italic border-l-2 border-gray-200 pl-4 my-3 text-base leading-relaxed">
+                                        {item.original_clause}
+                                      </blockquote>
 
-                                        {/* Bigger, Markdown-enabled sections */}
-                                        <div className="space-y-3">
-                                          <div>
-                                            <h4 className="text-md font-google-sans font-semibold text-gray-900">
-                                              Analysis
-                                            </h4>
-                                            <div className="prose prose-blue max-w-none text-gray-700 font-roboto text-base leading-relaxed">
-                                              <ReactMarkdown>
-                                                {
-                                                  item.analysis
-                                                    .risk_explanation
-                                                }
-                                              </ReactMarkdown>
-                                            </div>
+                                      <div className="space-y-3">
+                                        <div>
+                                          <h4 className="text-md font-google-sans font-semibold text-gray-900">
+                                            Analysis
+                                          </h4>
+                                          <div className="prose prose-blue max-w-none text-gray-700 font-roboto text-base leading-relaxed">
+                                            <ReactMarkdown>
+                                              {
+                                                item.analysis.risk_explanation
+                                              }
+                                            </ReactMarkdown>
                                           </div>
-                                          <div>
-                                            <h4 className="text-md font-google-sans font-semibold text-gray-900">
-                                              Recommendation
-                                            </h4>
-                                            <div className="prose prose-green max-w-none text-gray-700 font-roboto text-base leading-relaxed">
-                                              <ReactMarkdown>
-                                                {
-                                                  item.analysis
-                                                    .actionable_advice
-                                                }
-                                              </ReactMarkdown>
-                                            </div>
+                                        </div>
+                                        <div>
+                                          <h4 className="text-md font-google-sans font-semibold text-gray-900">
+                                            Recommendation
+                                          </h4>
+                                          <div className="prose prose-green max-w-none text-gray-700 font-roboto text-base leading-relaxed">
+                                            <ReactMarkdown>
+                                              {
+                                                item.analysis.actionable_advice
+                                              }
+                                            </ReactMarkdown>
                                           </div>
                                         </div>
                                       </div>
                                     </div>
                                   </div>
                                 </div>
-                              );
-                            }
-                          )}
-                        </div>
+                              </div>
+                            );
+                          }
+                        )}
                       </div>
                     </div>
                   )}
 
                   {activeTab === "flowchart" && (
-                    <div className="space-y-6">
-                      <div className="text-center">
-                        <h3 className="text-xl font-google-sans font-medium text-gray-900 mb-4">
-                          Document Decision Flow
-                        </h3>
-                        <p className="text-gray-600 font-roboto">
-                          Interactive flowchart showing key decision points and
-                          outcomes
-                        </p>
-                      </div>
-                      {/* keep your flowchart design */}
+                    <div className="text-center">
+                      <h3 className="text-xl font-google-sans font-medium text-gray-900 mb-4">
+                        Document Decision Flow
+                      </h3>
+                      <p className="text-gray-600 font-roboto">
+                        Interactive flowchart showing key decision points and
+                        outcomes
+                      </p>
                     </div>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Right Side - Sticky Chatbot */}
+            {/* Right Side - Chatbot */}
             <div className="lg:col-span-1">
               <div className="sticky top-8">
                 <div className="google-card h-[600px] flex flex-col">
@@ -326,7 +336,7 @@ export function ResultsPage({ analysisData, onNewAnalysis }: ResultsPageProps) {
                     </div>
                   </div>
 
-                  {/* Chat Messages */}
+                  {/* Messages */}
                   <div className="flex-1 overflow-y-auto p-4 space-y-4">
                     {chatMessages.map((message) => (
                       <div
@@ -345,7 +355,9 @@ export function ResultsPage({ analysisData, onNewAnalysis }: ResultsPageProps) {
                           }`}
                         >
                           <p className="text-sm font-roboto leading-relaxed">
+                            <ReactMarkdown>
                             {message.text}
+                            </ReactMarkdown>
                           </p>
                           <p
                             className={`text-xs mt-1 ${
@@ -362,9 +374,16 @@ export function ResultsPage({ analysisData, onNewAnalysis }: ResultsPageProps) {
                         </div>
                       </div>
                     ))}
+                    {loading && (
+                      <div className="flex justify-start">
+                        <div className="bg-gray-100 text-gray-600 px-3 py-2 rounded-2xl text-sm">
+                          Thinking...
+                        </div>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Chat Input */}
+                  {/* Input */}
                   <div className="p-4 border-t border-gray-200">
                     <div className="flex items-center gap-2">
                       <input
@@ -379,7 +398,7 @@ export function ResultsPage({ analysisData, onNewAnalysis }: ResultsPageProps) {
                       />
                       <Button
                         onClick={handleSendMessage}
-                        disabled={!chatInput.trim()}
+                        disabled={!chatInput.trim() || loading}
                         size="sm"
                         className="rounded-full w-8 h-8 p-0 bg-google-blue hover:bg-google-blue/90"
                       >
