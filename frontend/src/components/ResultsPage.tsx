@@ -1,6 +1,6 @@
 "use client";
-
-import React, { useState } from "react";
+import mermaid from "mermaid";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   FileText,
@@ -60,6 +60,12 @@ export function ResultsPage({ analysisData, onNewAnalysis }: ResultsPageProps) {
   ]);
   const [chatInput, setChatInput] = useState("");
   const [loading, setLoading] = useState(false);
+   useEffect(() => {
+    if (activeTab === "flowchart") {
+      mermaid.initialize({ startOnLoad: true, theme: "default" });
+      mermaid.contentLoaded();
+    }
+  }, [activeTab]);
 
   const handleSendMessage = async () => {
     if (!chatInput.trim() || !analysisData.additionalData) return;
@@ -300,17 +306,30 @@ export function ResultsPage({ analysisData, onNewAnalysis }: ResultsPageProps) {
                     </div>
                   )}
 
-                  {activeTab === "flowchart" && (
-                    <div className="text-center">
-                      <h3 className="text-xl font-google-sans font-medium text-gray-900 mb-4">
-                        Document Decision Flow
-                      </h3>
-                      <p className="text-gray-600 font-roboto">
-                        Interactive flowchart showing key decision points and
-                        outcomes
-                      </p>
-                    </div>
-                  )}
+            {activeTab === "flowchart" && (
+       <div>
+    <h3 className="text-xl font-google-sans font-medium text-gray-900 mb-4">
+      Document Decision Flow
+    </h3>
+    <div className="prose max-w-none mb-4">
+      <p className="text-gray-600 font-roboto">
+        Interactive flowchart showing key decision points and outcomes
+      </p>
+    </div>
+    <div className="mermaid" id="mermaid-flowchart">
+      {`
+        graph TD
+          A[Start] --> B{Is clause risky?}
+          B -->|Yes| C[Flag Risk]
+          B -->|No| D[Approve]
+          C --> E[Add Recommendation]
+          D --> E
+          E --> F[End]
+      `}
+    </div>
+  </div>
+)}
+
                 </div>
               </div>
             </div>

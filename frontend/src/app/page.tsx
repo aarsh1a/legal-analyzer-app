@@ -63,7 +63,7 @@ export default function HomePage() {
   src="/logo.jpg"
   alt="App Logo"
   width={150}
-  height={30}
+  height={40}
   className="rounded-2xl shadow-lg"
 />
 
