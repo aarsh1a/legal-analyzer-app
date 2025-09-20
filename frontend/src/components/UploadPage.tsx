@@ -4,13 +4,31 @@ import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload, FileText, Zap, Sparkles } from "lucide-react";
 import { analyzeDocument } from "@/utils/api";
+interface AdditionalData {
+  state?: string;
+  companyName?: string;
+  bankName?: string;
+  keyEntities?: any; // refine later
+  calendarEvents?: any;
+  summary?: string;
+  detailedAnalysis?: {
+    analysis: {
+      actionable_advice: string;
+      clause_category: string;
+      risk_explanation: string;
+      risk_level: string;
+    };
+    original_clause: string;
+  }[];
+  flowchart?: string;
+}
 
 interface UploadPageProps {
   onAnalysisComplete: (data: {
     documentId: string;
     filename: string;
     analysisReady: boolean;
-    additionalData?: any;
+    additionalData?:  AdditionalData;
   }) => void;
 }
 
@@ -80,7 +98,16 @@ export function UploadPage({ onAnalysisComplete }: UploadPageProps) {
         documentId: Date.now().toString(),
         filename: file.name,
         analysisReady: true,
-        additionalData: data,
+        additionalData: {
+            state: undefined, // or get it from your UI/form
+    companyName: undefined, // same here
+    bankName: undefined, // same here
+    keyEntities: data.key_entities,          // snake_case → camelCase
+    calendarEvents: data.calendar_events,    // snake_case → camelCase
+    summary: data.summary,
+    detailedAnalysis: data.detailed_analysis,
+    flowchart: data.flowchart,
+        },
       });
     } catch (err: any) {
       console.error("Upload error:", err);

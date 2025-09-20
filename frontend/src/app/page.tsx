@@ -60,9 +60,9 @@ export default function HomePage() {
               onClick={handleBackToLanding}
             >
    <Image
-  src="/logo.jpg"
+  src="/logo.png"
   alt="App Logo"
-  width={150}
+  width={250}
   height={40}
   className="rounded-2xl shadow-lg"
 />

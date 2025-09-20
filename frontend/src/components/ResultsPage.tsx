@@ -317,15 +317,7 @@ export function ResultsPage({ analysisData, onNewAnalysis }: ResultsPageProps) {
       </p>
     </div>
     <div className="mermaid" id="mermaid-flowchart">
-      {`
-        graph TD
-          A[Start] --> B{Is clause risky?}
-          B -->|Yes| C[Flag Risk]
-          B -->|No| D[Approve]
-          C --> E[Add Recommendation]
-          D --> E
-          E --> F[End]
-      `}
+      {analysisData.additionalData?.flowchart|| "graph TD; A[No flowchart available];"}
     </div>
   </div>
 )}
