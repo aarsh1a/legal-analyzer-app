@@ -1,14 +1,23 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Upload, FileText, Zap, Sparkles } from "lucide-react";
+import {
+  Upload,
+  FileText,
+  Zap,
+  Sparkles,
+  CheckCircle,
+  Eye,
+  Languages,
+} from "lucide-react";
 import { analyzeDocument } from "@/utils/api";
+
 interface AdditionalData {
   state?: string;
   companyName?: string;
   bankName?: string;
-  keyEntities?: any; // refine later
+  keyEntities?: any;
   calendarEvents?: any;
   summary?: string;
   detailedAnalysis?: {
@@ -28,40 +37,73 @@ interface UploadPageProps {
     documentId: string;
     filename: string;
     analysisReady: boolean;
-    additionalData?:  AdditionalData;
+    documentType?: string;
+    additionalData?: AdditionalData;
   }) => void;
 }
 
+type DocumentType = "rental" | "loan" | "employability" | "general";
+
+const indianStates = [
+  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
+  "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka",
+  "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram",
+  "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu",
+  "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal",
+];
+
 export function UploadPage({ onAnalysisComplete }: UploadPageProps) {
-  const [file, setFile] = useState<File | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [documentType, setDocumentType] = useState<DocumentType>("general");
+  const [selectedState, setSelectedState] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pdfjsLib, setPdfjsLib] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [currentStep, setCurrentStep] = useState(0);
 
-  // Dynamically load pdfjs-dist on client
+  const analysisSteps = ["Extract Text", "Analyze", "Summarize", "Finalize"];
+
   useEffect(() => {
     (async () => {
-      const pdfjs = await import("pdfjs-dist");
-      pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-        "pdfjs-dist/build/pdf.worker.min.mjs",
-        import.meta.url
-      ).toString();
-      setPdfjsLib(pdfjs);
+      try {
+        const pdfjs = await import("pdfjs-dist");
+        pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+          "pdfjs-dist/build/pdf.worker.min.mjs",
+          import.meta.url
+        ).toString();
+        setPdfjsLib(pdfjs);
+      } catch (e) {
+        console.error("Failed to load pdf.js", e);
+        setError("Could not load PDF viewer. Please refresh the page.");
+      }
     })();
   }, []);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files?.[0]) {
-      setFile(e.target.files[0]);
-      setError(null);
-      setProgress(0);
-    }
-  };
+  const handleFileSelect = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+        const file = e.target.files[0];
+        if (!file.type.includes("pdf")) {
+          setError("Only PDF files are accepted.");
+          return;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+          setError("File size cannot exceed 10MB.");
+          return;
+        }
+        setSelectedFile(file);
+        setError(null);
+      }
+    },
+    []
+  );
 
   const extractTextFromPDF = async (file: File): Promise<string> => {
     if (!pdfjsLib) throw new Error("PDF.js not loaded yet");
+    setCurrentStep(0);
 
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -71,173 +113,302 @@ export function UploadPage({ onAnalysisComplete }: UploadPageProps) {
       const page = await pdf.getPage(i);
       const content = await page.getTextContent();
       text += content.items.map((item: any) => item.str).join(" ") + "\n";
-
-      setProgress(Math.round((i / pdf.numPages) * 100));
     }
-
+    setCurrentStep(1);
     return text.trim();
   };
 
-  const handleUpload = async () => {
-    if (!file) {
-      setError("Please select a PDF before uploading.");
+  const handleAnalyze = useCallback(async () => {
+    if (!selectedFile) {
+      setError("Please select a file first.");
       return;
     }
 
-    setLoading(true);
+    setIsAnalyzing(true);
     setError(null);
+    setCurrentStep(0);
 
     try {
-      // Extract text from PDF
-      const extractedText = await extractTextFromPDF(file);
+      const extractedText = await extractTextFromPDF(selectedFile);
+      setCurrentStep(2);
 
-      // Send text to backend
       const data = await analyzeDocument(extractedText);
+      setCurrentStep(3);
 
-      onAnalysisComplete({
-        documentId: Date.now().toString(),
-        filename: file.name,
-        analysisReady: true,
-        additionalData: {
-            state: undefined, // or get it from your UI/form
-    companyName: undefined, // same here
-    bankName: undefined, // same here
-    keyEntities: data.key_entities,          // snake_case → camelCase
-    calendarEvents: data.calendar_events,    // snake_case → camelCase
-    summary: data.summary,
-    detailedAnalysis: data.detailed_analysis,
-    flowchart: data.flowchart,
-        },
-      });
+      setTimeout(() => {
+        onAnalysisComplete({
+          documentId: `doc_${Date.now()}`,
+          filename: selectedFile.name,
+          analysisReady: true,
+          documentType,
+          additionalData: {
+            state: selectedState,
+            companyName,
+            bankName,
+            keyEntities: data.key_entities,
+            calendarEvents: data.calendar_events,
+            summary: data.summary,
+            detailedAnalysis: data.detailed_analysis,
+            flowchart: data.flowchart,
+          },
+        });
+      }, 500);
     } catch (err: any) {
-      console.error("Upload error:", err);
-      setError("Failed to upload and analyze document. Please try again.");
-    } finally {
-      setLoading(false);
-      setProgress(0);
+      console.error("Analysis error:", err);
+      setError("Failed to analyze the document. Please try again.");
+      setIsAnalyzing(false);
     }
+  }, [
+    selectedFile,
+    documentType,
+    selectedState,
+    companyName,
+    bankName,
+    onAnalysisComplete,
+    pdfjsLib,
+  ]);
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
   };
+
+  if (isAnalyzing) {
+    return (
+      <div className="google-fade-in">
+        <section className="pt-16 pb-20">
+          <div className="container max-w-4xl mx-auto px-6">
+            <div className="text-center mb-12">
+              <h1 className="text-4xl font-google-sans font-medium text-gray-900 mb-4">
+                Analyzing Your Document
+              </h1>
+              <p className="text-xl text-gray-600 font-roboto">
+                Processing with advanced AI technology
+              </p>
+            </div>
+
+            <div className="google-card-floating p-12 text-center space-y-8 max-w-lg mx-auto">
+              {selectedFile && (
+                <div className="google-card bg-gray-50 p-4">
+                  <div className="flex items-center gap-3">
+                    <FileText className="w-6 h-6 text-google-blue flex-shrink-0" />
+                    <div className="text-left">
+                      <div className="font-medium text-gray-900 text-sm truncate">
+                        {selectedFile.name}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        PDF • {formatFileSize(selectedFile.size)} •{" "}
+                        {documentType}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-6">
+
+                <div className="flex justify-center space-x-8">
+                  {analysisSteps.map((step, index) => (
+                    <div
+                      key={step}
+                      className="flex flex-col items-center space-y-2"
+                    >
+                      <div
+                        className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all duration-500 ${index <= currentStep
+                          ? "border-google-blue bg-google-blue text-white google-glow"
+                          : "border-gray-300 text-gray-400"
+                          }`}
+                      >
+                        {index < currentStep ? (
+                          <CheckCircle className="w-6 h-6" />
+                        ) : index === currentStep ? (
+                          <div className="w-3 h-3 bg-white rounded-full animate-pulse" />
+                        ) : (
+                          <span className="text-sm font-medium">
+                            {index + 1}
+                          </span>
+                        )}
+                      </div>
+                      <span
+                        className={`text-sm font-roboto transition-colors duration-300 ${index <= currentStep
+                          ? "text-google-blue font-medium"
+                          : "text-gray-500"
+                          }`}
+                      >
+                        {step}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="google-fade-in">
-  <section className="py-16">
-    <div className="container max-w-3xl mx-auto px-6 text-center">
-      <div className="google-card p-8">
-
-        {/* --- Conditional: Analyzing UI or Upload UI --- */}
-        {loading ? (
-          // --- Analyzing UI ---
-          <div className="flex flex-col items-center gap-6">
-            <h2 className="text-xl font-semibold">Analyzing Your Document</h2>
-            <p className="text-gray-500">Processing with advanced AI technology</p>
-
-            {file && (
-              <div className="border rounded-xl p-4 w-full text-left">
-                <p className="font-medium">{file.name}</p>
-                <p className="text-sm text-gray-500">
-                  PDF • {(file.size / 1024).toFixed(1)} KB • general
-                </p>
-              </div>
-            )}
-
-          <div className="flex justify-between w-full mt-6">
-  {["OCR", "Translate", "Summarize", "Analyze"].map((label, i) => {
-    const colors = ["#4285F4", "#EA4335", "#FBBC05", "#34A853"]; // Google colors
-    const isActive = progress / 25 >= i + 1; // progress logic
-    return (
-      <div key={label} className="flex flex-col items-center">
-        <div
-          className="w-10 h-10 rounded-full flex items-center justify-center text-white"
-          style={{
-            backgroundColor: isActive ? colors[i] : "#E0E0E0", // gray if not active
-          }}
-        >
-          {i + 1}
-        </div>
-        <span className="text-sm mt-2">{label}</span>
-      </div>
-    );
-  })}
-</div>
-
-
-            <p className="text-sm text-gray-500 mt-4">
-              {progress > 0 ? `Step ${Math.ceil(progress / 25)} of 4` : "Initializing..."}
-            </p>
-          </div>
-        ) : (
-          // --- Upload UI ---
-          <div className="flex flex-col items-center gap-6">
-            {/* Icon */}
-            <div className="w-16 h-16 bg-google-blue/10 rounded-full flex items-center justify-center">
-              <Upload className="w-8 h-8 text-google-blue" />
-            </div>
-
-            {/* Title */}
-            <h1 className="font-google-sans text-3xl font-medium text-gray-900">
+      <section className="pt-16 pb-20">
+        <div className="container max-w-4xl mx-auto px-6">
+          <div className="text-center mb-12 google-slide-in">
+            <h1 className="text-4xl font-google-sans font-medium text-gray-900 mb-4">
               Upload Your Legal Document
             </h1>
-            <p className="text-gray-600 font-roboto max-w-md">
-              Securely upload agreements, contracts, or legal papers. Our AI
-              will analyze risks and give you actionable insights.
+            <p className="text-xl text-gray-600 font-roboto">
+              Choose your document and specify its type for better analysis
             </p>
-
-            {/* File Input (hidden) */}
-            <input
-              type="file"
-              accept="application/pdf"
-              onChange={handleFileChange}
-              ref={fileInputRef}
-              className="hidden"
-            />
-
-            {/* Choose PDF button */}
-            <Button
-              onClick={() => fileInputRef.current?.click()}
-              variant="outline"
-              className="google-button"
-            >
-              <FileText className="w-4 h-4 mr-2" />
-              Choose PDF
-            </Button>
-
-            {/* File Selected Preview */}
-            {file && (
-              <div className="flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-lg border">
-                <FileText className="w-5 h-5 text-google-blue" />
-                <span className="text-sm font-roboto text-gray-800">
-                  {file.name}
-                </span>
-              </div>
-            )}
-
-            {/* Error Message */}
-            {error && (
-              <p className="text-sm text-google-red font-roboto">{error}</p>
-            )}
-
-            {/* Upload Button */}
-            <Button
-              onClick={handleUpload}
-              disabled={!file || loading || !pdfjsLib}
-              className="google-button w-full"
-            >
-              {loading ? (
-                <Zap className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Sparkles className="w-4 h-4 mr-2" />
-              )}
-              {loading
-                ? `Analyzing... ${progress > 0 ? progress + "%" : ""}`
-                : "Start Analysis"}
-            </Button>
           </div>
-        )}
 
-      </div>
+          <div className="space-y-8">
+            <div className="google-upload-card-floating">
+              {!selectedFile ? (
+                <div className="space-y-6">
+                  <div className="mx-auto w-20 h-20 bg-gradient-to-br from-google-blue to-google-blue/80 rounded-3xl flex items-center justify-center google-icon-float">
+                    <Upload className="w-10 h-10 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-google-sans font-medium text-gray-900 mb-3">
+                      Upload PDF Document
+                    </h3>
+                    <p className="text-gray-600 font-roboto">
+                      Drag and drop your file here, or click to browse
+                    </p>
+                  </div>
+                  <div className="space-y-4">
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="google-primary-button w-full text-lg px-8 py-4 h-auto google-upload-hover"
+                    >
+                      <Upload className="w-6 h-6 mr-3" />
+                      Choose File
+                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      className="hidden"
+                      accept=".pdf"
+                      onChange={handleFileSelect}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="mx-auto w-20 h-20 bg-google-green/10 rounded-full flex items-center justify-center">
+                    <CheckCircle className="w-10 h-10 text-google-green" />
+                  </div>
+
+                  <div className="google-card bg-gray-50 p-6">
+                    <div className="flex items-center gap-4">
+                      <FileText className="w-8 h-8 text-google-blue flex-shrink-0" />
+                      <div className="text-left">
+                        <div className="font-medium text-gray-900 text-lg">
+                          {selectedFile.name}
+                        </div>
+                        <div className="text-sm text-gray-500 mt-1">
+                          PDF • {formatFileSize(selectedFile.size)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setSelectedFile(null)}
+                    className="text-google-blue hover:underline font-roboto"
+                  >
+                    Choose different file
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {error && (
+              <p className="text-center text-sm text-google-red font-roboto">
+                {error}
+              </p>
+            )}
+            <Button
+              onClick={handleAnalyze}
+              disabled={!selectedFile || isAnalyzing || !pdfjsLib}
+              className="google-primary-button w-full text-lg px-8 py-4 h-auto google-upload-hover"
+            >
+              <Sparkles className="w-6 h-6 mr-3" />
+              Analyze Document
+            </Button>
+
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mt-12">
+              <div className="text-center space-y-4">
+                <div
+                  className="mx-auto w-16 h-16 google-feature-icon"
+                  style={
+                    {
+                      "--bg-color": "#e3f2fd",
+                      "--bg-color-dark": "#bbdefb",
+                    } as React.CSSProperties
+                  }
+                >
+                  <Eye className="w-8 h-8 text-google-blue" />
+                </div>
+                <div>
+                  <h4 className="font-google-sans font-medium text-gray-900 text-lg">
+                    OCR Ready
+                  </h4>
+                  <p className="text-gray-600 font-roboto">
+                    Process scanned documents
+                  </p>
+                </div>
+              </div>
+              <div className="text-center space-y-4">
+                <div
+                  className="mx-auto w-16 h-16 google-feature-icon"
+                  style={
+                    {
+                      "--bg-color": "#e8f5e8",
+                      "--bg-color-dark": "#c8e6c9",
+                    } as React.CSSProperties
+                  }
+                >
+                  <Languages className="w-8 h-8 text-google-green" />
+                </div>
+                <div>
+                  <h4 className="font-google-sans font-medium text-gray-900 text-lg">
+                    Multilingual
+                  </h4>
+                  <p className="text-gray-600 font-roboto">
+                    Auto-translate to English
+                  </p>
+                </div>
+              </div>
+              <div className="text-center space-y-4">
+                <div
+                  className="mx-auto w-16 h-16 google-feature-icon"
+                  style={
+                    {
+                      "--bg-color": "#fff3e0",
+                      "--bg-color-dark": "#ffe0b2",
+                    } as React.CSSProperties
+                  }
+                >
+                  <Zap className="w-8 h-8 text-google-yellow" />
+                </div>
+                <div>
+                  <h4 className="font-google-sans font-medium text-gray-900 text-lg">
+                    AI Powered
+                  </h4>
+                  <p className="text-gray-600 font-roboto">
+                    Advanced Gemini analysis
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
-  </section>
-</div>
-
   );
 }

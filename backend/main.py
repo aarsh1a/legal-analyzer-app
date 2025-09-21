@@ -4,6 +4,7 @@ import json
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 import vertexai
+from flask_cors import CORS
 from sentence_transformers import SentenceTransformer
 import re
 from pinecone import Pinecone
@@ -13,7 +14,7 @@ from helper import extract_interest_rate, search_tool
 load_dotenv()
 
 app = Flask(__name__)
-
+CORS(app)
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID")
 REGION = os.environ.get("GCP_REGION")
 vertexai.init(project=PROJECT_ID, location=REGION)
