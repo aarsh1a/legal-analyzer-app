@@ -1,6 +1,10 @@
 Flask==3.0.0
 gunicorn==21.2.0
-pinecone==4.0.0
-google-cloud-aiplatform>=1.38
 python-dotenv==1.0.0
+Flask-Cors
+sentence-transformers
+pinecone
+google-cloud-aiplatform>=1.38
+langchain-google-genai
+tavily-python
 regex==2023.10.3

@@ -5,9 +5,6 @@ import google.generativeai as genai
 # Load environment variables from .env file
 load_dotenv()
 
-# Get the API key from .env
-api_key = os.getenv("AIzaSyAu-ZfyywZ6ca440NRWcAqW7u15hkEnf1E")
-
 if not api_key:
     raise ValueError("API key not found! Please add it to your .env file as GOOGLE_API_KEY=your_api_key_here")
 

@@ -603,4 +603,9 @@ def calculate_in_hand_salary(salary_components: dict) -> dict:
         return {"error": f"An error occurred during salary calculation: {e}"}
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)),debug=True)
+    import os
+    app.run(
+        debug=True,
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 8080))
+    )

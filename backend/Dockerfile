@@ -6,7 +6,7 @@ ENV PYTHONUNBUFFERED True
 
 # Set the working directory inside the container
 WORKDIR /app
-
+RUN pip install torch --no-cache-dir --index-url https://download.pytorch.org/whl/cpu
 # Copy the file that lists the dependencies
 COPY requirements.txt .
 
@@ -16,8 +16,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of your application code into the container
 COPY . .
 
-# Tell the container to listen on port 8080
-EXPOSE 8080
-
-# Run the Gunicorn web server to start your Flask app
-CMD ["gunicorn", "--bind", "0.0.0.80", "--workers", "2", "--threads", "8", "main:app"]
+# This command starts the Gunicorn server.
+# It dynamically binds to the port provided by Cloud Run via the $PORT environment variable.
+CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 main:app
