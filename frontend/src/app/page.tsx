@@ -6,8 +6,8 @@ import { LandingPage } from '@/components/LandingPage';
 import { UploadPage } from '@/components/UploadPage';
 import { ResultsPage } from '@/components/ResultsPage';
 import { Button } from '@/components/ui/button';
-import { 
-  FileText, 
+import {
+  FileText,
   ArrowLeft
 } from 'lucide-react';
 
@@ -27,9 +27,9 @@ export default function HomePage() {
     setCurrentStep('upload');
   }, []);
 
-  const handleAnalysisComplete = useCallback((data: { 
-    documentId: string; 
-    filename: string; 
+  const handleAnalysisComplete = useCallback((data: {
+    documentId: string;
+    filename: string;
     analysisReady: boolean;
     documentType?: string;
     additionalData?: any;
@@ -55,22 +55,22 @@ export default function HomePage() {
         <div className="container max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between h-16">
             {/* Google-style Logo */}
-            <div 
-              className="google-logo google-slide-in cursor-pointer" 
+            <div
+              className="google-logo google-slide-in cursor-pointer"
               onClick={handleBackToLanding}
             >
-   <Image
-  src="/logo.png"
-  alt="App Logo"
-  width={170}
-  height={30}
-  className="rounded-2xl "
-/>
+              <Image
+                src="/logo.png"
+                alt="App Logo"
+                width={170}
+                height={30}
+                className="rounded-2xl "
+              />
 
 
 
-              
-             
+
+
             </div>
 
             {/* Navigation & Powered by Gemini */}
@@ -87,7 +87,7 @@ export default function HomePage() {
                   </Button>
                 </div>
               )}
-              
+
               {currentStep !== 'landing' && (
                 <Button
                   variant="ghost"
@@ -113,19 +113,19 @@ export default function HomePage() {
       {/* Main Content */}
       <main className="flex-1">
         {currentStep === 'landing' && (
-          <LandingPage 
+          <LandingPage
             onGetStarted={handleGetStarted}
           />
         )}
 
         {currentStep === 'upload' && (
-          <UploadPage 
+          <UploadPage
             onAnalysisComplete={handleAnalysisComplete}
           />
         )}
 
         {currentStep === 'results' && analysisData && (
-          <ResultsPage 
+          <ResultsPage
             analysisData={analysisData}
             onNewAnalysis={handleNewAnalysis}
           />
@@ -137,23 +137,11 @@ export default function HomePage() {
         <div className="container max-w-7xl mx-auto px-6">
           <div className="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
             <div className="flex items-center gap-2 text-gray-600 font-roboto">
-              <span>© 2025 Legal Analyzer by</span>
+              <span>© 2025 Law Light by</span>
               <div className="flex items-center gap-1">
-                <span className="font-google-sans font-medium text-google-blue">Google</span>
-                <span className="font-google-sans font-medium text-google-red">A</span>
-                <span className="font-google-sans font-medium text-google-yellow">I</span>
+                <span className="font-google-sans font-medium text-google-blue">Commit</span>
+                <span className="font-google-sans font-medium text-google-yellow">Cake</span>
               </div>
-            </div>
-            <div className="flex items-center gap-8 text-sm">
-              <a href="#" className="text-google-blue hover:underline font-roboto transition-colors">
-                Contact
-              </a>
-              <a href="#" className="text-gray-600 hover:text-gray-900 font-roboto transition-colors">
-                Privacy
-              </a>
-              <a href="#" className="text-gray-600 hover:text-gray-900 font-roboto transition-colors">
-                Terms
-              </a>
             </div>
           </div>
         </div>

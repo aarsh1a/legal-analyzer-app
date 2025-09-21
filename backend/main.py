@@ -449,9 +449,10 @@ def get_flowchart_mermaid_from_summary(summary_text: str) -> str:
     try:
         print("🤖 generating flowchart...")
         response = generation_model.generate_content(prompt)
+        print(response, response.text)
         # Extract the mermaid code from the response
         mermaid_code = response.text.strip()
-
+        print(mermaid_code)
         # Remove starting ```mermaid if present
         if mermaid_code.startswith("```mermaid"):
             mermaid_code = mermaid_code[len("```mermaid"):]
@@ -462,7 +463,7 @@ def get_flowchart_mermaid_from_summary(summary_text: str) -> str:
 
         # Remove extra whitespace
         mermaid_code = mermaid_code.strip()
-
+        print(mermaid_code)
         print("✅ flowchart generated successfully.")
         return mermaid_code
     except Exception as e:

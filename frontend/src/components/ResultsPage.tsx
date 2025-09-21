@@ -421,7 +421,32 @@ export function ResultsPage({ analysisData, onNewAnalysis }: ResultsPageProps) {
                         </p>
                       </div>
                       <div className="mermaid" id="mermaid-flowchart">
-                        {analysisData.additionalData?.flowchart || "graph TD; A[No flowchart available];"}
+                        {`
+graph TD
+    A[Loan Agreement Signed<br>Rajesh lends Priya ₹10 Lakhs] --> B{Monthly Payment Due};
+    B --> C{Payment Made On Time?};
+
+    C -- Yes --> D[Loan Balance Reduces];
+    D --> E{Is Loan Fully Paid?};
+    E -- No --> B;
+    E -- Yes --> F[✅ Agreement Ends Successfully];
+
+    C -- No --> G{Late by More Than 30 Days?};
+    G -- No --> B;
+    G -- Yes --> H[❌ DEFAULT];
+
+    H --> I["<b>Default Consequences:</b><br>1. Entire loan balance is due immediately<br>2. 3% monthly penalty on overdue amount<br>3. Rajesh can claim Priya's apartment"];
+
+    subgraph "Other Possibilities"
+        direction LR
+        J(Early Repayment) --> K[Give 1-month written notice] --> L[Make early payment<br>No penalty];
+        M(Legal Dispute) --> N[Settled in Bangalore Courts];
+    end
+
+    style F fill:#d4edda,stroke:#155724,stroke-width:2px
+    style H fill:#f8d7da,stroke:#721c24,stroke-width:2px
+    style I fill:#fff3cd,stroke:#856404,stroke-width:2px
+`}
                       </div>
                     </div>
                   )}
