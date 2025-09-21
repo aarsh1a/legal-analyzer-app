@@ -119,7 +119,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {/* Feature 1 */}
-            <div className="google-card google-fade-in">
+            <div className="google-card google-fade-in p-6 lg:p-8 rounded-2xl shadow-md bg-white">
+
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-google-blue to-google-blue/80 flex items-center justify-center mb-4">
                 <Eye className="w-6 h-6 text-white" />
               </div>
@@ -130,7 +131,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </div>
 
             {/* Feature 2 */}
-            <div className="google-card google-fade-in google-fade-delay-1">
+            <div className="google-card google-fade-in p-6 lg:p-8 rounded-2xl shadow-md bg-white">
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-google-green to-google-green/80 flex items-center justify-center mb-4">
                 <Globe className="w-6 h-6 text-white" />
               </div>
@@ -141,7 +142,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </div>
 
             {/* Feature 3 */}
-            <div className="google-card google-fade-in google-fade-delay-2">
+            <div className="google-card google-fade-in p-6 lg:p-8 rounded-2xl shadow-md bg-white">
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-google-yellow to-google-yellow/80 flex items-center justify-center mb-4">
                 <Zap className="w-6 h-6 text-white" />
               </div>
@@ -152,7 +153,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </div>
 
             {/* Feature 4 */}
-            <div className="google-card google-fade-in google-fade-delay-3">
+            <div className="google-card google-fade-in p-6 lg:p-8 rounded-2xl shadow-md bg-white">
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-google-red to-google-red/80 flex items-center justify-center mb-4">
                 <Shield className="w-6 h-6 text-white" />
               </div>
@@ -163,7 +164,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </div>
 
             {/* Feature 5 */}
-            <div className="google-card google-fade-in google-fade-delay-4">
+           <div className="google-card google-fade-in p-6 lg:p-8 rounded-2xl shadow-md bg-white">
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center mb-4">
                 <FileText className="w-6 h-6 text-white" />
               </div>
@@ -174,7 +175,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </div>
 
             {/* Feature 6 */}
-            <div className="google-card google-fade-in google-fade-delay-5">
+            <div className="google-card google-fade-in p-6 lg:p-8 rounded-2xl shadow-md bg-white">
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center mb-4">
                 <Sparkles className="w-6 h-6 text-white" />
               </div>
@@ -197,14 +198,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <p className="text-xl text-gray-600 font-roboto mb-8 max-w-2xl mx-auto">
               Join thousands who trust our AI to make legal documents clear and understandable
             </p>
-            <Button
-              size="lg"
-              onClick={onGetStarted}
-              className="google-primary-button text-lg px-8 py-4 group"
-            >
-              <Sparkles className="w-5 h-5 mr-2 group-hover:rotate-12 transition-transform" />
-              Start Analyzing Now
-            </Button>
+       <div className="flex justify-center">
+  <Button
+    size="lg"
+    onClick={onGetStarted}
+    className="google-primary-button text-lg px-8 py-4 group"
+  >
+    <Sparkles className="w-5 h-5 mr-2 group-hover:rotate-12 transition-transform" />
+    Start Analyzing Now
+  </Button>
+</div>
+
           </div>
         </div>
       </section>
