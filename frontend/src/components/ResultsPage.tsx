@@ -22,7 +22,7 @@ interface ResultsPageProps {
     documentType?: string;
     additionalData?: {
       summary?: string;
-      detailed_analysis?: {
+      detailedAnalysis?: {
         analysis: {
           actionable_advice: string;
           clause_category: string;
@@ -31,6 +31,7 @@ interface ResultsPageProps {
         };
         original_clause: string;
       }[];
+      flowchart?: string;
     };
   };
   onNewAnalysis: () => void;
@@ -234,7 +235,7 @@ export function ResultsPage({ analysisData, onNewAnalysis }: ResultsPageProps) {
                         Risk Flags
                       </h3>
                       <div className="space-y-4">
-                        {analysisData.additionalData?.detailed_analysis?.map(
+                        {analysisData.additionalData?.detailedAnalysis?.map(
                           (item, idx) => {
                             const riskLevel = getRiskLevel(
                               item.analysis.risk_level

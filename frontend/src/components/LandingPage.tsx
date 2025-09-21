@@ -117,15 +117,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 items-stretch">
             {/* Feature 1 */}
             <div className="google-card google-fade-in p-6 lg:p-8 rounded-2xl shadow-md bg-white">
 
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-google-blue to-google-blue/80 flex items-center justify-center mb-4">
                 <Eye className="w-6 h-6 text-white" />
               </div>
-              <h3 className="text-xl font-google-sans font-semibold text-gray-900 mb-3">Smart Analysis</h3>
-              <p className="text-gray-600 font-roboto leading-relaxed">
+              <h3 className="text-xl font-google-sans font-semibold text-gray-900 mb-2">
+                Smart Analysis
+              </h3>
+              <p className="text-gray-600 font-roboto leading-relaxed flex-grow">
                 Advanced OCR and AI comprehension to understand complex legal language and structure
               </p>
             </div>
@@ -135,8 +137,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-google-green to-google-green/80 flex items-center justify-center mb-4">
                 <Globe className="w-6 h-6 text-white" />
               </div>
-              <h3 className="text-xl font-google-sans font-semibold text-gray-900 mb-3">Multi-Language</h3>
-              <p className="text-gray-600 font-roboto leading-relaxed">
+              <h3 className="text-xl font-google-sans font-semibold text-gray-900 mb-2">
+                Multi-Language
+              </h3>
+              <p className="text-gray-600 font-roboto leading-relaxed flex-grow">
                 Process documents in 50+ languages with accurate translation and cultural context
               </p>
             </div>
@@ -146,8 +150,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-google-yellow to-google-yellow/80 flex items-center justify-center mb-4">
                 <Zap className="w-6 h-6 text-white" />
               </div>
-              <h3 className="text-xl font-google-sans font-semibold text-gray-900 mb-3">Instant Results</h3>
-              <p className="text-gray-600 font-roboto leading-relaxed">
+              <h3 className="text-xl font-google-sans font-semibold text-gray-900 mb-2">
+                Instant Results
+              </h3>
+              <p className="text-gray-600 font-roboto leading-relaxed flex-grow">
                 Get comprehensive analysis, risk assessment, and plain-English summaries in seconds
               </p>
             </div>
@@ -157,8 +163,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-google-red to-google-red/80 flex items-center justify-center mb-4">
                 <Shield className="w-6 h-6 text-white" />
               </div>
-              <h3 className="text-xl font-google-sans font-semibold text-gray-900 mb-3">Risk Detection</h3>
-              <p className="text-gray-600 font-roboto leading-relaxed">
+              <h3 className="text-xl font-google-sans font-semibold text-gray-900 mb-2">
+                Risk Detection
+              </h3>
+              <p className="text-gray-600 font-roboto leading-relaxed flex-grow">
                 Identify potential risks, unfavorable terms, and missing clauses with AI precision
               </p>
             </div>
@@ -168,8 +176,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center mb-4">
                 <FileText className="w-6 h-6 text-white" />
               </div>
-              <h3 className="text-xl font-google-sans font-semibold text-gray-900 mb-3">Document Types</h3>
-              <p className="text-gray-600 font-roboto leading-relaxed">
+              <h3 className="text-xl font-google-sans font-semibold text-gray-900 mb-2">
+                Document Types
+              </h3>
+              <p className="text-gray-600 font-roboto leading-relaxed flex-grow">
                 Supports contracts, leases, employment agreements, NDAs, and more legal documents
               </p>
             </div>
@@ -179,12 +189,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center mb-4">
                 <Sparkles className="w-6 h-6 text-white" />
               </div>
-              <h3 className="text-xl font-google-sans font-semibold text-gray-900 mb-3">AI Chat Assistant</h3>
-              <p className="text-gray-600 font-roboto leading-relaxed">
+              <h3 className="text-xl font-google-sans font-semibold text-gray-900 mb-2">
+                AI Chat Assistant
+              </h3>
+              <p className="text-gray-600 font-roboto leading-relaxed flex-grow">
                 Ask questions about your document and get instant, contextual answers from our AI
               </p>
             </div>
           </div>
+
         </div>
       </section>
 

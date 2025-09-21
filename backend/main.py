@@ -393,11 +393,11 @@ def chatbot():
       - 'question': user's question
     """
     data = request.get_json()
-    if not data or 'summary' not in data or 'detailed_analysis' not in data :
+    if not data or 'summary' not in data or 'detailedAnalysis' not in data :
         return jsonify({"error": "Request body must contain 'summary', 'detailed_analysis'"}), 400
 
     summary = parse_summary(data['summary'])
-    detailed_analysis = data['detailed_analysis']
+    detailed_analysis = data['detailedAnalysis']
     question = data['question']
 
     # Prepare context for the LLM
