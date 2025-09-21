@@ -10,6 +10,8 @@ import re
 from pinecone import Pinecone
 from vertexai.generative_models import GenerativeModel
 from helper import extract_interest_rate, search_tool
+from langchain_google_genai import ChatGoogleGenerativeAI
+from helper import extract_interest_rate, tavily_search_tool
 
 load_dotenv()
 
@@ -17,10 +19,13 @@ app = Flask(__name__)
 CORS(app)
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID")
 REGION = os.environ.get("GCP_REGION")
+GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 vertexai.init(project=PROJECT_ID, location=REGION)
 
 generation_model = GenerativeModel("gemini-2.5-pro")
 embedding_model = SentenceTransformer("sentence-transformers/all-mpnet-base-v2")  
+llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash",api_key = GOOGLE_API_KEY)
+llm_tools = llm.bind_tools([tavily_search_tool])
 
 PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
 RENTAL_INDEX_NAME = "karnataka-rental-lows"
@@ -424,14 +429,38 @@ def chatbot():
         return jsonify({"error": "Could not generate a response."}), 500
 
 @app.route('/loan_comparison', methods=['POST'])
-def compare_loan_rates_auto():
+def loan_comparison():
     data = request.get_json()
-    if not data or 'summary' not in data:
+    if 'summary' not in data:
         return jsonify({"error": "Request body must contain 'summary'"}), 400
-    
-    summary = data['summary']
-    result = find_better_loan_options(summary)
-    return jsonify(result)
+
+    summary = parse_summary(data['summary'])
+    agreement_rate = extract_interest_rate(summary)
+
+    query = f"current personal loan interest rates India September 2025"
+
+    # Step 1: Ask Gemini with tool binding
+    response = llm_tools.invoke(
+        f"The loan agreement has {agreement_rate}% interest. "
+        f"Search for banks offering lower rates. Query: {query}"
+    )
+
+    # Step 2: Check if Gemini tried to call a tool
+    if response.tool_calls:
+        tool_call = response.tool_calls[0]
+        if tool_call["name"] == "tavily_search_tool":
+            tool_args = tool_call["args"]
+            tool_result = tavily_search_tool(**tool_args)   # actually call your function
+
+            # Step 3: Send tool result back to Gemini for reasoning
+            followup = llm_tools.invoke(
+                f"The agreement interest rate is {agreement_rate}%. "
+                f"Here are the current market loan rates: {tool_result}. "
+                f"Compare and suggest the best option."
+            )
+            return jsonify({"comparison": followup.content})
+
+    return jsonify({"answer": response.content})
 
 # put flowchart api here
 def get_flowchart_mermaid_from_summary(summary_text: str) -> str:
@@ -522,38 +551,6 @@ def detect_contract_type(document_text: str) -> str:
     except Exception as e:
         print(f"❌ error in contract classification: {e}")
         return "unknown"
-    
-def find_better_loan_options(summary: str):
-    # Step A: extract interest rate
-    agreement_rate = extract_interest_rate(summary)
-    if not agreement_rate:
-        return {"error": "Could not extract interest rate from summary"}
-    
-    # Step B: let Gemini reason with web tool
-    prompt = f"""
-    The loan agreement has an interest rate of {agreement_rate}%.
-    Use the search_web tool to look up current personal loan interest rates in India (Sep 2025).
-    Find banks offering lower rates than {agreement_rate}%.
-    
-    Return a JSON list with objects like:
-    {{
-      "bank": "<Bank Name>",
-      "rate": <float>,
-      "application_link": "<URL>",
-      "advice": "<short one-line advice>"
-    }}
-    """
-    
-    response = generation_model.generate_content(
-        prompt,
-        tools=[search_tool],
-        tool_config={"function_calling_config": "AUTO"}  # let Gemini decide when to call
-    )
-    
-    try:
-        return json.loads(response.text.strip())
-    except:
-        return {"raw_response": response.text}
 
 def calculate_in_hand_salary(salary_components: dict) -> dict:
     """Calculates in-hand salary based on extracted components for Karnataka."""

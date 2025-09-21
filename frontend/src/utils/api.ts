@@ -17,3 +17,13 @@ export async function analyzeDocument(text: string) {
     if (!res.ok) throw new Error('Failed to get chatbot response');
     return res.json();
   }
+
+  export async function loanComparison(summary: string) {
+    const res = await fetch('http://localhost:8080/loan_comparison', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ summary }),
+    });
+    if (!res.ok) throw new Error('Failed to get loan comparison');
+    return res.json();
+  }

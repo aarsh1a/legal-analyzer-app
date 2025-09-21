@@ -13,7 +13,7 @@ import {
   ArrowRightCircle,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-import { askChatbot } from "@/utils/api";
+import { askChatbot,loanComparison } from "@/utils/api";
 
 interface ResultsPageProps {
   analysisData: {
@@ -51,6 +51,9 @@ interface ChatMessage {
 
 export function ResultsPage({ analysisData, onNewAnalysis }: ResultsPageProps) {
   const [activeTab, setActiveTab] = useState<TabType>("summary");
+  const [loanComparisonResult, setLoanComparisonResult] = useState<string | null>(null);
+  const [loanComparisonLoading, setLoanComparisonLoading] = useState(false);
+  const [loanComparisonError, setLoanComparisonError] = useState<string | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
       id: "1",
@@ -124,6 +127,26 @@ export function ResultsPage({ analysisData, onNewAnalysis }: ResultsPageProps) {
       const value = parts.slice(1).join(':').trim();
       return { key, value };
     });
+  };
+
+  const handleLoanComparison = async () => {
+    setLoanComparisonLoading(true);
+    setLoanComparisonError(null);
+    setLoanComparisonResult(null);
+    try {
+      const summary = analysisData?.additionalData?.summary;
+      if (!summary) {
+        setLoanComparisonError("No summary available for comparison.");
+        setLoanComparisonLoading(false);
+        return;
+      }
+      const result = await loanComparison(summary);
+      setLoanComparisonResult(result.comparison || result.answer || "No comparison available.");
+    } catch (err: any) {
+      setLoanComparisonError("Failed to fetch loan comparison.");
+    } finally {
+      setLoanComparisonLoading(false);
+    }
   };
 
   const keyPoints = parseKeyEntities(analysisData.additionalData?.keyEntities as string | undefined);
@@ -255,6 +278,24 @@ export function ResultsPage({ analysisData, onNewAnalysis }: ResultsPageProps) {
                         </li>
                       ))}
                   </ul>
+                  <Button
+                      onClick={handleLoanComparison}
+                      disabled={loanComparisonLoading}
+                      className="mt-2 bg-google-blue text-white hover:bg-google-blue/90 border border-google-blue"
+                      variant="outline"
+                    >
+                      {loanComparisonLoading ? "Comparing..." : "Compare Interest Rate in Market"}
+                    </Button>
+                    {loanComparisonError && (
+                        <div className="text-red-500 mt-2">{loanComparisonError}</div>
+                      )}
+                      {loanComparisonResult && (
+                        <div className="mt-2 google-card p-4 bg-white border border-google-blue/20 text-gray-800 whitespace-pre-line">
+                          <ReactMarkdown>
+                            {loanComparisonResult}
+                          </ReactMarkdown>
+                        </div>
+                      )}
                 </div>
               </div>
               {/* Calculate overall risk before rendering */}
