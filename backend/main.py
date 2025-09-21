@@ -34,15 +34,34 @@ loan_pinecone_index = pc.Index(LOAN_INDEX_NAME)
 print("Initializations complete. Server is ready.")
 
 key_entity_extraction_prompt = """
-You are an expert at extracting key entities from legal documents.
-From the document text below, identify and list all important entities.
-Group them under the following categories:
-- Parties (names of people, companies, or organizations)
-- Dates (specific dates mentioned)
-- Monetary Amounts (rent, salary, loan amounts, deposits, etc.)
-- Locations (addresses, cities, etc.)
+You are an expert legal analyst tasked with extracting ONLY the most critical entities from a legal document. Your output will be used for a high-level summary, so it must be concise.
 
-Present the result as a clean, bulleted list. If no entities are found for a category, omit the category.
+**Instructions:**
+1.  **Be Selective:** Focus only on the primary entities that define the agreement.
+2.  **Primary Parties:** Identify the main parties (e.g., Lender, Borrower, Landlord).
+3.  **Core Financials:** Extract the main financial figures (e.g., Loan Amount, Monthly Rent, Interest Rate).
+4.  **Essential Terms & Dates:** Pinpoint crucial dates and terms (e.g., First Payment Date, Repayment Term, Collateral).
+5.  **Omit Secondary Info:** Do NOT include witnesses, full street addresses (unless it's collateral), or general city names.
+6.  **Formatting:**
+    - Do NOT include headers or introductory sentences.
+    - Present the result as a simple bulleted list, with each point starting with '*'.
+    - **Crucially, use the format: `* Label: Value`**.
+
+**Example for a Loan Agreement:**
+* Lender: Rajesh Kumar
+* Borrower: Priya Sharma
+* Loan Amount: Rs. 10,00,000
+* Interest Rate: 12% per annum
+* Repayment Term: 24 months
+* Collateral: Apartment in Bangalore
+* Default Penalty Interest: 3% per month
+
+**Example for a Rental Agreement:**
+* Landlord: Aarav Singh
+* Tenant: Sneha Gupta
+* Monthly Rent: ₹25,000
+* Security Deposit: ₹50,000
+* Lease Term: 11 Months
 
 Document Text:
 \"\"\"{document_text}\"\"\"
@@ -59,19 +78,6 @@ def process_contract(document_text: str, summary_prompt: str, analysis_prompt_te
     except Exception as e:
         print(f"❌ error during key entity extraction: {e}")
         key_entities_result = "Could not extract key entities from this document."
-
-    # --- Stage 0.5: Date Extraction for Calendar ---
-    print("starting stage 0.5: date extraction for calendar...")
-    calendar_events = []
-    try:
-        date_prompt = date_extraction_prompt.format(document_text=document_text)
-        date_response = generation_model.generate_content(date_prompt)
-        clean_json_string = date_response.text.strip().replace('```json', '').replace('```', '')
-        calendar_events = json.loads(clean_json_string)
-        print("✅ calendar events extracted successfully.")
-    except Exception as e:
-        print(f"❌ error during date extraction: {e}")
-        calendar_events = []
 
     # --- Stage 1: High-level summary ---
     print("starting stage 1: high-level summary...")
@@ -102,7 +108,7 @@ def process_contract(document_text: str, summary_prompt: str, analysis_prompt_te
 
     # --- Stage 2: Clause-by-clause analysis ---
     print("starting stage 2: detailed clause analysis...")
-    chunks = [chunk for chunk in re.split(r'\n\s*\n', document_text) if len(chunk.strip()) > 100]
+    chunks = [chunk.strip() for chunk in re.split(r'\n\s*\n|\n(?=\s*(\d+\.|\*|\([a-zA-Z]\)|\b[IVX]+\.))', document_text) if len(chunk.strip()) > 50]
     risk_analysis_results = []
 
     for i, chunk in enumerate(chunks):
@@ -146,7 +152,6 @@ def process_contract(document_text: str, summary_prompt: str, analysis_prompt_te
     print("✅ detailed analysis complete.")
     response_data = {
         "key_entities": key_entities_result,
-        "calendar_events": calendar_events,
         "summary": summary_result,
         "detailed_analysis": risk_analysis_results,
         "flowchart": mermaid_code
@@ -159,17 +164,13 @@ def process_contract(document_text: str, summary_prompt: str, analysis_prompt_te
 
 # ---- Rental Prompts ----
 rental_summary_prompt = """
-You are a helpful assistant who explains legal documents in simple, plain English for someone in Bengaluru, Karnataka as of August 2025.
-Read the following rental agreement and provide a simple summary.
+You are an expert legal analyst. Your task is to explain a rental agreement in simple, plain English for someone in Bengaluru, Karnataka.
 
-Extract these key details:
-- Landlord's Name
-- Tenant's Name
-- Property Address
-- Monthly Rent Amount
-- Security Deposit Amount
-- Lease Duration (e.g., 11 months, 3 years)
-- Lock-in Period
+**Instructions:**
+1.  **Narrative Only:** Write a narrative summary explaining what the agreement means. Describe the key terms like rent, deposit, and lease duration within the story.
+2.  **No Lists:** Do NOT create a separate bulleted or itemized list of "Key Details".
+3.  **No Intros/Outros:** Do NOT start with conversational phrases like "Of course, here is..." and do NOT add a disclaimer at the end.
+4.  **Just the Summary:** Your entire response must be only the narrative summary text.
 
 Here is the document:
 {document_text}
@@ -201,19 +202,13 @@ Return ONLY a VALID JSON object with EXACTLY these keys:
 
 # ---- Employment Prompts ----
 employment_summary_prompt = """
-You are a helpful assistant who explains legal documents in simple, plain English for someone in Bengaluru, Karnataka as of August 2025.
-Read the following employment agreement and provide a simple summary.
+You are an expert legal analyst. Your task is to explain an employment agreement in simple, plain English for someone in Bengaluru, Karnataka.
 
-Extract these key details:
-- Employer's Name
-- Employee's Name
-- Job Title / Designation
-- Start Date of Employment
-- Work Location
-- Salary / CTC Details (if mentioned)
-- Probation Period (if any)
-- Notice Period (for termination/resignation)
-- Contract Duration (e.g., permanent, 1-year contract)
+**Instructions:**
+1.  **Narrative Only:** Write a narrative summary explaining what the agreement means. Describe the key terms like salary, job role, and notice period within the story.
+2.  **No Lists:** Do NOT create a separate bulleted or itemized list of "Key Details".
+3.  **No Intros/Outros:** Do NOT start with conversational phrases like "Of course, here is..." and do NOT add a disclaimer at the end.
+4.  **Just the Summary:** Your entire response must be only the narrative summary text.
 
 Here is the document:
 {document_text}
@@ -296,18 +291,13 @@ Document Text:
 
 # ---- Loan Prompts ----
 loan_summary_prompt = """
-You are a helpful assistant who explains legal documents in simple, plain English for someone in Bengaluru, Karnataka as of August 2025.
-Read the following loan agreement and provide a simple summary.
+You are an expert legal analyst. Your task is to explain a loan agreement in simple, plain English for someone in Bengaluru, Karnataka.
 
-Extract these key details:
-- Lender's Name
-- Borrower's Name
-- Loan Amount
-- Interest Rate
-- Repayment Schedule
-- Loan Tenure
-- Collateral (if any)
-- Default & Penalty Terms
+**Instructions:**
+1.  **Narrative Only:** Write a narrative summary explaining what the agreement means. Describe who is lending money to whom, the amount, interest, repayment plan, and any important conditions like collateral or penalties.
+2.  **No Lists:** Do NOT create a separate bulleted or itemized list of "Key Details".
+3.  **No Intros/Outros:** Do NOT start with conversational phrases like "Of course, here is..." and do NOT add a disclaimer at the end.
+4.  **Just the Summary:** Your entire response must be only the narrative summary text.
 
 Here is the document:
 {document_text}

@@ -114,7 +114,6 @@ export function UploadPage({ onAnalysisComplete }: UploadPageProps) {
       const content = await page.getTextContent();
       text += content.items.map((item: any) => item.str).join(" ") + "\n";
     }
-    setCurrentStep(1);
     return text.trim();
   };
 
@@ -129,11 +128,28 @@ export function UploadPage({ onAnalysisComplete }: UploadPageProps) {
     setCurrentStep(0);
 
     try {
-      const extractedText = await extractTextFromPDF(selectedFile);
-      setCurrentStep(2);
+      const minStepDuration = 5000; // 5 seconds
 
-      const data = await analyzeDocument(extractedText);
-      setCurrentStep(3);
+      // --- Step 1: Extract Text with Delay ---
+      const textPromise = extractTextFromPDF(selectedFile);
+      const delayPromise1 = new Promise(resolve => setTimeout(resolve, minStepDuration));
+      const [extractedText] = await Promise.all([textPromise, delayPromise1]);
+
+      setCurrentStep(1); // Mark "Extract Text" as complete, start "Analyze"
+
+      // --- Step 2: Analyze Document with Delay ---
+      const analysisPromise = analyzeDocument(extractedText);
+      const delayPromise2 = new Promise(resolve => setTimeout(resolve, minStepDuration));
+      const [data] = await Promise.all([analysisPromise, delayPromise2]);
+
+      setCurrentStep(2); // Mark "Analyze" as complete, start "Summarize"
+
+      // Simulate final steps quickly
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setCurrentStep(3); // Mark "Summarize" as complete, start "Finalize"
+
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setCurrentStep(4);
 
       setTimeout(() => {
         onAnalysisComplete({

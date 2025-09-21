@@ -20,4 +20,4 @@ COPY . .
 EXPOSE 8080
 
 # Run the Gunicorn web server to start your Flask app
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "2", "--threads", "8", "main:app"]
+CMD ["gunicorn", "--bind", "0.0.0.80", "--workers", "2", "--threads", "8", "main:app"]
