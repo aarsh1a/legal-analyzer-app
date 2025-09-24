@@ -70,6 +70,10 @@ The backend API will run at `http://localhost:5000`.
 
 Refer to Google Cloud documentation for deploying Flask API on **Cloud Run** and Cloud Function setup for OCR.
 
+Deployement Link 
+
+https://legal-app-analyzer-seven.vercel.app/
+
 ### Configuration
 
 - Set your API keys and environment variables (Google Cloud, Pinecone) in `.env` files or Google Cloud Secret Manager.
