@@ -469,52 +469,49 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+import re
+import logging
+
 def get_flowchart_mermaid_from_summary(summary_text: str) -> str:
     """
     Generates Mermaid flowchart code from a summary of a legal document using the generative model.
-    The function extracts and returns clean Mermaid code without markdown fences.
-    
-    Parameters:
-    - summary_text: str, the summary text to be converted into a flowchart.
-    
-    Returns:
-    - str: Mermaid flowchart code ready to use.
+    Extracts and returns clean Mermaid code without markdown fences.
     """
-    
     prompt = f"""
     You are a helpful assistant that converts a summary of a legal document into a Mermaid.js flowchart.
     Based on the following summary, create a Mermaid.js flowchart that visualizes the key stages and decision points of the rental agreement process.
 
     The flowchart should be simple and easy to understand for a layperson.
-    Your response should only contain the Mermaid code, starting with ``````.
+    Your response should only contain the Mermaid code, inside a code block that starts with ``````.
 
     Summary:
     {summary_text}
     """
 
     try:
-        logger.info("🤖 Generating flowchart from summary...")
+        logging.info("🤖 Generating flowchart from summary...")
         response = generation_model.generate_content(prompt)
         raw_output = response.text
 
-        # Extract Mermaid code between the triple backticks with 'mermaid' after them
+        # Extract Mermaid code between ``````
         mermaid_pattern = r"``````"
         match = re.search(mermaid_pattern, raw_output)
 
-        if not match:
-            logger.warning("Mermaid code block not found in model output; returning trimmed text.")
+        if match:
+            mermaid_code = match.group(1).strip()
+        else:
+            logging.warning("Mermaid code block not found in model output; returning trimmed text.")
             # As fallback, return the entire text stripped of whitespace
             mermaid_code = raw_output.strip()
-        else:
-            mermaid_code = match.group(1).strip()
-        
-        logger.info("✅ Flowchart generated successfully.")
+
+        logging.info("✅ Flowchart generated successfully.")
         return mermaid_code
 
     except Exception as error:
-        logger.error(f"❌ Error during flowchart generation: {error}", exc_info=True)
+        logging.error(f"❌ Error during flowchart generation: {error}", exc_info=True)
         # Return minimal fallback flowchart on failure
         return "graph TD;\n    A[Error generating flowchart];"
+s
 
     
 def parse_summary(summary: str) -> str:
