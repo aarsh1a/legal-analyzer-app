@@ -53,17 +53,16 @@ Imagine opening a 20-page rental agreement and actually understanding it in 2 mi
 - Access to Google Cloud services: Cloud Run, Cloud Functions, Vertex AI, Pinecone
 
 ### Frontend Setup (Next.js)
+cd frontend
 npm run dev
 
-OR
-
 The frontend will be accessible at `http://localhost:3000`.
+The frontend will be accessible at 'https://legal-app-analyzer-seven.vercel.app/ '.
 
 ### Backend Setup (Flask API)
-
+cd backend
 python main.py
 
-OR
 
 The backend API will run at `http://localhost:5000`.
 
