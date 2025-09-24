@@ -57,7 +57,6 @@ cd frontend
 npm run dev
 
 The frontend will be accessible at `http://localhost:3000`.
-The frontend will be accessible at 'https://legal-app-analyzer-seven.vercel.app/ '.
 
 ### Backend Setup (Flask API)
 cd backend
