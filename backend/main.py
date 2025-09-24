@@ -463,40 +463,57 @@ def loan_comparison():
     return jsonify({"answer": response.content})
 
 # put flowchart api here
+import re
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 def get_flowchart_mermaid_from_summary(summary_text: str) -> str:
-    """Generates Mermaid flowchart code from a summary text using the generative model."""
+    """
+    Generates Mermaid flowchart code from a summary of a legal document using the generative model.
+    The function extracts and returns clean Mermaid code without markdown fences.
+    
+    Parameters:
+    - summary_text: str, the summary text to be converted into a flowchart.
+    
+    Returns:
+    - str: Mermaid flowchart code ready to use.
+    """
+    
     prompt = f"""
     You are a helpful assistant that converts a summary of a legal document into a Mermaid.js flowchart.
     Based on the following summary, create a Mermaid.js flowchart that visualizes the key stages and decision points of the rental agreement process.
 
     The flowchart should be simple and easy to understand for a layperson.
-    Your response should only contain the Mermaid code, starting with ```mermaid and ending with ```.
+    Your response should only contain the Mermaid code, starting with ``````.
 
     Summary:
     {summary_text}
     """
+
     try:
-        print("🤖 generating flowchart...")
+        logger.info("🤖 Generating flowchart from summary...")
         response = generation_model.generate_content(prompt)
-        print(response, response.text)
-        # Extract the mermaid code from the response
-        mermaid_code = response.text.strip()
-        print(mermaid_code)
-        # Remove starting ```mermaid if present
-        if mermaid_code.startswith("```mermaid"):
-            mermaid_code = mermaid_code[len("```mermaid"):]
+        raw_output = response.text
 
-        # Remove ending ``` if present
-        if mermaid_code.endswith("```"):
-            mermaid_code = mermaid_code[:-len("```")]
+        # Extract Mermaid code between the triple backticks with 'mermaid' after them
+        mermaid_pattern = r"``````"
+        match = re.search(mermaid_pattern, raw_output)
 
-        # Remove extra whitespace
-        mermaid_code = mermaid_code.strip()
-        print(mermaid_code)
-        print("✅ flowchart generated successfully.")
+        if not match:
+            logger.warning("Mermaid code block not found in model output; returning trimmed text.")
+            # As fallback, return the entire text stripped of whitespace
+            mermaid_code = raw_output.strip()
+        else:
+            mermaid_code = match.group(1).strip()
+        
+        logger.info("✅ Flowchart generated successfully.")
         return mermaid_code
-    except Exception as e:
-        print(f"❌ error during flowchart generation: {e}")
+
+    except Exception as error:
+        logger.error(f"❌ Error during flowchart generation: {error}", exc_info=True)
+        # Return minimal fallback flowchart on failure
         return "graph TD;\n    A[Error generating flowchart];"
 
     
