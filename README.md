@@ -75,9 +75,9 @@ Refer to Google Cloud documentation for deploying Flask API on **Cloud Run** and
 
 - Set your API keys and environment variables (Google Cloud, Pinecone) in `.env` files or Google Cloud Secret Manager.
 
----
 
-*For contributions, bug reports, and feature requests, please open an issue or pull request.*
+
+
 
 ---
 
